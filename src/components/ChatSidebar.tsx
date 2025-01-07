@@ -1,6 +1,11 @@
 import { Hash, ChevronDown } from "lucide-react";
 
-const ChatSidebar = () => {
+interface ChatSidebarProps {
+  activeChannel: string;
+  onChannelSelect: (channelName: string) => void;
+}
+
+const ChatSidebar = ({ activeChannel, onChannelSelect }: ChatSidebarProps) => {
   const channels = [
     { id: 1, name: "general" },
     { id: 2, name: "random" },
@@ -21,7 +26,12 @@ const ChatSidebar = () => {
         <ul className="space-y-1">
           {channels.map((channel) => (
             <li key={channel.id}>
-              <button className="w-full text-left flex items-center space-x-2 text-secondary-foreground hover:bg-chat-hover rounded p-2">
+              <button 
+                className={`w-full text-left flex items-center space-x-2 text-secondary-foreground hover:bg-chat-hover rounded p-2 ${
+                  activeChannel === channel.name ? 'bg-chat-hover' : ''
+                }`}
+                onClick={() => onChannelSelect(channel.name)}
+              >
                 <Hash size={18} />
                 <span>{channel.name}</span>
               </button>
