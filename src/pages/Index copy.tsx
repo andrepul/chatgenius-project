@@ -9,57 +9,37 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import ThreadView from "@/components/ThreadView";
-import { Message } from "@/types/message";
 
-function Index() {
+const Index = () => {
   const [activeChannel, setActiveChannel] = useState("general");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState([
     {
       id: 1,
       content: "Welcome to the chat!",
       sender: "System",
       timestamp: new Date(),
-      channel: "general",
-      replyCount: 0,
+      channel: "general"
     },
     {
       id: 2,
       content: "Hey everyone! 👋",
       sender: "Sarah",
       timestamp: new Date(Date.now() - 1000 * 60 * 5),
-      channel: "general",
-      replyCount: 0,
+      channel: "general"
     },
   ]);
-  const [activeThread, setActiveThread] = useState<Message | undefined>();
 
-  const handleSendMessage = (content: string, parentId?: number) => {
-    const newMessage: Message = {
+  const handleSendMessage = (content: string) => {
+    const newMessage = {
       id: messages.length + 1,
       content,
       sender: "You",
       timestamp: new Date(),
-      channel: activeChannel,
-      parentId,
-      replyCount: 0,
+      channel: activeChannel
     };
-
-    if (parentId) {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === parentId ? { ...msg, replyCount: (msg.replyCount || 0) + 1 } : msg
-        )
-      );
-    }
-
-    setMessages((prev) => [...prev, newMessage]);
-  };
-
-  const handleThreadClick = (message: Message) => {
-    setActiveThread(message);
+    setMessages([...messages, newMessage]);
   };
 
   const filteredMessages = messages.filter((message) => {
@@ -70,20 +50,24 @@ function Index() {
 
   return (
     <div className="flex h-screen bg-white">
-      <ChatSidebar activeChannel={activeChannel} onChannelSelect={setActiveChannel} />
+      <ChatSidebar 
+        activeChannel={activeChannel} 
+        onChannelSelect={setActiveChannel} 
+      />
       <div className="flex-1 flex flex-col">
         <div className="p-4 border-b flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <label className="relative">
-              <Search size={16} className="absolute top-2 left-2 text-gray-400" />
+          <h1 className="text-xl font-semibold">#{activeChannel}</h1>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
+                placeholder="Search messages..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search messages"
-                className="pl-8 pr-24 py-2 text-sm border rounded-md"
+                className="pl-9 pr-4 py-2 border rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
-            </label>
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md">
                 {searchScope === "channel" ? "This Channel" : "All Channels"}
@@ -99,28 +83,18 @@ function Index() {
             </DropdownMenu>
           </div>
         </div>
-
         <div className="flex-1 overflow-y-auto">
           {filteredMessages.map((message) => (
-            <ChatMessage
-              key={message.id}
-              message={message}
-              onThreadClick={handleThreadClick}
-            />
+            <ChatMessage key={message.id} message={message} />
           ))}
         </div>
-
-        <ChatInput onSendMessage={handleSendMessage} activeChannel={activeChannel} />
+        <ChatInput 
+          onSendMessage={handleSendMessage} 
+          activeChannel={activeChannel}
+        />
       </div>
-
-      <ThreadView
-        parentMessage={activeThread}
-        messages={messages}
-        onClose={() => setActiveThread(undefined)}
-        onSendReply={(content, parentId) => handleSendMessage(content, parentId)}
-      />
     </div>
   );
-}
+};
 
 export default Index;
