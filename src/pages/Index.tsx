@@ -49,7 +49,10 @@ const Index = () => {
             <ChatMessage key={message.id} message={message} />
           ))}
         </div>
-        <ChatInput onSendMessage={handleSendMessage} />
+        <ChatInput 
+          onSendMessage={handleSendMessage} 
+          activeChannel={activeChannel}
+        />
       </div>
     </div>
   );
