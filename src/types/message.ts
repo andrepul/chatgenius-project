@@ -2,16 +2,14 @@ export interface Message {
   id: number;
   content: string;
   sender: string;
+  senderId?: string; // Add this for Supabase user ID
   timestamp: Date;
   channel: string | null;
   isDM?: boolean;
   recipientId?: string;
-  replyCount?: number;
-  parentId?: number;
-  reactions: {
-    [emoji: string]: string[];
-  };
-  status?: "online" | "offline" | "away";
+  replyCount: number;
+  reactions: Record<string, string[]>;
+  status?: "online" | "away" | "offline";
   attachment?: {
     name: string;
     url: string;

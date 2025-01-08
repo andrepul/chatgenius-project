@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import ChatSidebar from "@/components/ChatSidebar";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
+import Auth from "@/components/Auth";
 import { Search } from "lucide-react";
 import {
   DropdownMenu,
@@ -10,8 +12,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Message } from "@/types/message";
+import { User } from "@supabase/supabase-js";
 
 function Index() {
+  const [session, setSession] = useState<User | null>(null);
   const [activeChannel, setActiveChannel] = useState("general");
   const [activeDM, setActiveDM] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,6 +55,27 @@ function Index() {
     },
   ]);
 
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // If no session, show auth component
+  if (!session) {
+    return <Auth />;
+  }
+
   const handleSendMessage = async (content: string, file?: File) => {
     let attachment;
     if (file) {
@@ -68,6 +93,7 @@ function Index() {
       id: messages.length + 1,
       content,
       sender: "You",
+      senderId: session.id, // Add sender ID
       timestamp: new Date(),
       channel: activeDM ? null : activeChannel,
       isDM: !!activeDM,
