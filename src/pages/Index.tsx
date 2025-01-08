@@ -9,11 +9,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import ThreadView from "@/components/ThreadView";
 import { Message } from "@/types/message";
 
 function Index() {
   const [activeChannel, setActiveChannel] = useState("general");
+  const [activeDM, setActiveDM] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
   const [messages, setMessages] = useState<Message[]>([
@@ -35,81 +35,87 @@ function Index() {
       replyCount: 0,
       reactions: {}
     },
+    {
+      id: 3,
+      content: "Hi Sarah, how are you?",
+      sender: "John",
+      timestamp: new Date(Date.now() - 1000 * 60 * 3),
+      isDM: true,
+      channel: null,
+      recipientId: "user1",
+      replyCount: 0,
+      reactions: {}
+    },
   ]);
-  const [activeThread, setActiveThread] = useState<Message | undefined>();
 
-  const handleSendMessage = (content: string, parentId?: number) => {
+  const handleSendMessage = (content: string) => {
     const newMessage: Message = {
       id: messages.length + 1,
       content,
       sender: "You",
       timestamp: new Date(),
-      channel: activeChannel,
-      parentId,
+      channel: activeDM ? null : activeChannel,
+      isDM: !!activeDM,
+      recipientId: activeDM || undefined,
       replyCount: 0,
       reactions: {}
     };
+    setMessages([...messages, newMessage]);
+  };
 
-    if (parentId) {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === parentId ? { ...msg, replyCount: (msg.replyCount || 0) + 1 } : msg
-        )
-      );
+  const handleChannelSelect = (channelName: string) => {
+    setActiveChannel(channelName);
+    if (!channelName.startsWith('dm-')) {
+      setActiveDM(null);
     }
-
-    setMessages((prev) => [...prev, newMessage]);
   };
 
-  const handleThreadClick = (message: Message) => {
-    setActiveThread(message);
-  };
-
-  const handleReaction = (messageId: number, emoji: string) => {
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id === messageId) {
-          const currentReactions = msg.reactions || {};
-          const currentUsers = currentReactions[emoji] || [];
-          const currentUser = "You";
-
-          return {
-            ...msg,
-            reactions: {
-              ...currentReactions,
-              [emoji]: currentUsers.includes(currentUser)
-                ? currentUsers.filter((u) => u !== currentUser)
-                : [...currentUsers, currentUser],
-            },
-          };
-        }
-        return msg;
-      })
-    );
+  const handleDMSelect = (userId: string) => {
+    setActiveDM(userId);
   };
 
   const filteredMessages = messages.filter((message) => {
     const matchesSearch = message.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesChannel = searchScope === "global" || message.channel === activeChannel;
+    const matchesChannel = searchScope === "global" || 
+      (activeDM 
+        ? message.isDM && (message.recipientId === activeDM || message.sender === "You")
+        : message.channel === activeChannel);
     return (!searchQuery || matchesSearch) && matchesChannel;
   });
 
+  const getDisplayName = () => {
+    if (activeDM) {
+      const dmUser = {
+        user1: "Sarah Smith",
+        user2: "John Doe",
+        user3: "Alice Johnson"
+      }[activeDM];
+      return dmUser || "Unknown User";
+    }
+    return `#${activeChannel}`;
+  };
+
   return (
     <div className="flex h-screen bg-white">
-      <ChatSidebar activeChannel={activeChannel} onChannelSelect={setActiveChannel} />
+      <ChatSidebar 
+        activeChannel={activeChannel} 
+        onChannelSelect={handleChannelSelect}
+        onDMSelect={handleDMSelect}
+      />
       <div className="flex-1 flex flex-col">
         <div className="p-4 border-b flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <label className="relative">
-              <Search size={16} className="absolute top-2 left-2 text-gray-400" />
+          <h1 className="text-xl font-semibold">{getDisplayName()}</h1>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
+                placeholder="Search messages..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search messages"
-                className="pl-8 pr-24 py-2 text-sm border rounded-md"
+                className="pl-9 pr-4 py-2 border rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
-            </label>
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md">
                 {searchScope === "channel" ? "This Channel" : "All Channels"}
@@ -131,22 +137,17 @@ function Index() {
             <ChatMessage
               key={message.id}
               message={message}
-              onThreadClick={handleThreadClick}
-              onReaction={handleReaction}
               currentUser="You"
             />
           ))}
         </div>
 
-        <ChatInput onSendMessage={handleSendMessage} activeChannel={activeChannel} />
+        <ChatInput 
+          onSendMessage={handleSendMessage} 
+          activeChannel={activeDM ? getDisplayName() : activeChannel}
+          placeholder={activeDM ? `Message ${getDisplayName()}` : undefined}
+        />
       </div>
-
-      <ThreadView
-        parentMessage={activeThread}
-        messages={messages}
-        onClose={() => setActiveThread(undefined)}
-        onSendReply={(content, parentId) => handleSendMessage(content, parentId)}
-      />
     </div>
   );
 }

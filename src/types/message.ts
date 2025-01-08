@@ -3,10 +3,12 @@ export interface Message {
   content: string;
   sender: string;
   timestamp: Date;
-  channel: string;
+  channel: string | null;
+  isDM?: boolean;
+  recipientId?: string;
   replyCount?: number;
   parentId?: number;
   reactions: {
-    [emoji: string]: string[];  // emoji -> array of user IDs who reacted
+    [emoji: string]: string[];
   };
-} 
+}
