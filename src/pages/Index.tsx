@@ -51,7 +51,19 @@ function Index() {
     },
   ]);
 
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = async (content: string, file?: File) => {
+    let attachment;
+    if (file) {
+      // In a real app, you would upload the file to a storage service
+      // and get back a URL. For now, we'll create an object URL
+      const url = URL.createObjectURL(file);
+      attachment = {
+        name: file.name,
+        url,
+        type: file.type
+      };
+    }
+
     const newMessage: Message = {
       id: messages.length + 1,
       content,
@@ -61,7 +73,8 @@ function Index() {
       isDM: !!activeDM,
       recipientId: activeDM || undefined,
       replyCount: 0,
-      reactions: {}
+      reactions: {},
+      attachment
     };
     setMessages([...messages, newMessage]);
   };

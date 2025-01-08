@@ -1,4 +1,4 @@
-import { MessageSquare, Circle } from "lucide-react";
+import { MessageSquare, Circle, Download } from "lucide-react";
 import { Message } from "@/types/message";
 import EmojiPicker from "./EmojiPicker";
 
@@ -31,6 +31,13 @@ const ChatMessage = ({
         return "text-gray-400";
     }
   };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith("image/")) {
+      return null; // We'll show the actual image
+    }
+    return <Download className="w-4 h-4" />;
+  };
   
   return (
     <div className="py-2 px-4 hover:bg-chat-hover">
@@ -54,6 +61,27 @@ const ChatMessage = ({
             </span>
           </div>
           <p className="text-secondary-foreground">{message.content}</p>
+
+          {message.attachment && (
+            <div className="mt-2">
+              {message.attachment.type.startsWith("image/") ? (
+                <img
+                  src={message.attachment.url}
+                  alt={message.attachment.name}
+                  className="max-w-sm rounded-lg border"
+                />
+              ) : (
+                <a
+                  href={message.attachment.url}
+                  download={message.attachment.name}
+                  className="inline-flex items-center space-x-2 px-3 py-2 bg-accent rounded-lg text-sm hover:bg-accent/80"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>{message.attachment.name}</span>
+                </a>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center gap-2 mt-1">
             {Object.entries(reactions).map(([emoji, users]) => (

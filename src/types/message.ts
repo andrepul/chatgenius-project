@@ -12,4 +12,9 @@ export interface Message {
     [emoji: string]: string[];
   };
   status?: "online" | "offline" | "away";
+  attachment?: {
+    name: string;
+    url: string;
+    type: string;
+  };
 }
