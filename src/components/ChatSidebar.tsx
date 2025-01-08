@@ -1,4 +1,4 @@
-import { Hash, ChevronDown, MessageSquare } from "lucide-react";
+import { Hash, ChevronDown, MessageSquare, Circle } from "lucide-react";
 
 interface ChatSidebarProps {
   activeChannel: string;
@@ -14,10 +14,23 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
   ];
 
   const dms = [
-    { id: "user1", name: "Sarah Smith" },
-    { id: "user2", name: "John Doe" },
-    { id: "user3", name: "Alice Johnson" },
+    { id: "user1", name: "Sarah Smith", status: "online" },
+    { id: "user2", name: "John Doe", status: "away" },
+    { id: "user3", name: "Alice Johnson", status: "offline" },
   ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "online":
+        return "text-green-500";
+      case "away":
+        return "text-yellow-500";
+      case "offline":
+        return "text-gray-400";
+      default:
+        return "text-gray-400";
+    }
+  };
 
   return (
     <div className="w-64 bg-secondary h-screen flex flex-col">
@@ -62,7 +75,12 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
                     onDMSelect?.(user.id);
                   }}
                 >
-                  <MessageSquare size={18} />
+                  <div className="relative">
+                    <MessageSquare size={18} />
+                    <Circle 
+                      className={`absolute bottom-0 right-0 w-2 h-2 ${getStatusColor(user.status)} fill-current`}
+                    />
+                  </div>
                   <span>{user.name}</span>
                 </button>
               </li>

@@ -1,4 +1,4 @@
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Circle } from "lucide-react";
 import { Message } from "@/types/message";
 import EmojiPicker from "./EmojiPicker";
 
@@ -19,11 +19,29 @@ const ChatMessage = ({
 }: ChatMessageProps) => {
   const reactions = message.reactions || {};
   
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case "online":
+        return "text-green-500";
+      case "away":
+        return "text-yellow-500";
+      case "offline":
+        return "text-gray-400";
+      default:
+        return "text-gray-400";
+    }
+  };
+  
   return (
     <div className="py-2 px-4 hover:bg-chat-hover">
       <div className="flex items-start space-x-3">
-        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
-          {message.sender[0].toUpperCase()}
+        <div className="relative">
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
+            {message.sender[0].toUpperCase()}
+          </div>
+          <Circle 
+            className={`absolute bottom-0 right-0 w-3 h-3 ${getStatusColor(message.status)} fill-current`}
+          />
         </div>
         <div className="flex-1">
           <div className="flex items-center space-x-2">

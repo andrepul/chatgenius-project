@@ -24,7 +24,8 @@ function Index() {
       timestamp: new Date(),
       channel: "general",
       replyCount: 0,
-      reactions: {}
+      reactions: {},
+      status: "online"
     },
     {
       id: 2,
@@ -33,7 +34,8 @@ function Index() {
       timestamp: new Date(Date.now() - 1000 * 60 * 5),
       channel: "general",
       replyCount: 0,
-      reactions: {}
+      reactions: {},
+      status: "online"
     },
     {
       id: 3,
@@ -44,7 +46,8 @@ function Index() {
       channel: null,
       recipientId: "user1",
       replyCount: 0,
-      reactions: {}
+      reactions: {},
+      status: "away"
     },
   ]);
 

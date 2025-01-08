@@ -11,4 +11,5 @@ export interface Message {
   reactions: {
     [emoji: string]: string[];
   };
+  status?: "online" | "offline" | "away";
 }
