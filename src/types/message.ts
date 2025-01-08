@@ -6,7 +6,7 @@ export interface Message {
   channel: string;
   replyCount?: number;
   parentId?: number;
-  reactions?: {
-    [emoji: string]: string[];
+  reactions: {
+    [emoji: string]: string[];  // emoji -> array of user IDs who reacted
   };
 } 

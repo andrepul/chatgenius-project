@@ -37,25 +37,35 @@ const ChatMessage = ({
           </div>
           <p className="text-secondary-foreground">{message.content}</p>
 
-          {/* Show any reactions (if implemented) */}
-          {Object.entries(reactions).map(([emoji, users]) => (
-            <div key={emoji} className="text-xs inline-block mr-2">
-              {emoji} {users.length}
-            </div>
-          ))}
-
-          {/* Button to open the thread */}
-          {showThread && (
-            <button
-              onClick={() => onThreadClick?.(message)}
-              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1"
-            >
-              <MessageSquare size={14} />
-              {message.replyCount === 0
-                ? "Start thread"
-                : `${message.replyCount} ${message.replyCount === 1 ? "reply" : "replies"}`}
-            </button>
-          )}
+          <div className="flex items-center gap-2 mt-1">
+            {Object.entries(reactions).map(([emoji, users]) => (
+              <button
+                key={emoji}
+                onClick={() => onReaction?.(message.id, emoji)}
+                className={`inline-flex items-center space-x-1 text-xs rounded-full px-2 py-1 ${
+                  users.includes(currentUser)
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-muted hover:bg-muted/80"
+                }`}
+              >
+                <span>{emoji}</span>
+                <span>{users.length}</span>
+              </button>
+            ))}
+            <EmojiPicker onEmojiSelect={(emoji) => onReaction?.(message.id, emoji)} />
+            
+            {showThread && (
+              <button
+                onClick={() => onThreadClick?.(message)}
+                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+              >
+                <MessageSquare size={14} />
+                {message.replyCount === 0
+                  ? "Start thread"
+                  : `${message.replyCount} ${message.replyCount === 1 ? "reply" : "replies"}`}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

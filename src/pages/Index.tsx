@@ -24,6 +24,7 @@ function Index() {
       timestamp: new Date(),
       channel: "general",
       replyCount: 0,
+      reactions: {}
     },
     {
       id: 2,
@@ -32,6 +33,7 @@ function Index() {
       timestamp: new Date(Date.now() - 1000 * 60 * 5),
       channel: "general",
       replyCount: 0,
+      reactions: {}
     },
   ]);
   const [activeThread, setActiveThread] = useState<Message | undefined>();
@@ -45,6 +47,7 @@ function Index() {
       channel: activeChannel,
       parentId,
       replyCount: 0,
+      reactions: {}
     };
 
     if (parentId) {
@@ -60,6 +63,29 @@ function Index() {
 
   const handleThreadClick = (message: Message) => {
     setActiveThread(message);
+  };
+
+  const handleReaction = (messageId: number, emoji: string) => {
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId) {
+          const currentReactions = msg.reactions || {};
+          const currentUsers = currentReactions[emoji] || [];
+          const currentUser = "You";
+
+          return {
+            ...msg,
+            reactions: {
+              ...currentReactions,
+              [emoji]: currentUsers.includes(currentUser)
+                ? currentUsers.filter((u) => u !== currentUser)
+                : [...currentUsers, currentUser],
+            },
+          };
+        }
+        return msg;
+      })
+    );
   };
 
   const filteredMessages = messages.filter((message) => {
@@ -106,6 +132,8 @@ function Index() {
               key={message.id}
               message={message}
               onThreadClick={handleThreadClick}
+              onReaction={handleReaction}
+              currentUser="You"
             />
           ))}
         </div>
