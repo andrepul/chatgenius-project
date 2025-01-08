@@ -39,23 +39,29 @@ export default function Auth() {
         return;
       }
 
-      const { error } = isSignUp 
-        ? await supabase.auth.signUp({ 
-            email, 
-            password,
-            options: {
-              data: { timestamp: new Date().toISOString() }
-            }
-          })
-        : await supabase.auth.signInWithPassword({ 
-            email, 
-            password,
-            options: {
-              persistSession: rememberMe
-            }
-          });
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: { timestamp: new Date().toISOString() }
+          }
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ 
+          email, 
+          password 
+        });
+        if (error) throw error;
 
-      if (error) throw error;
+        // If remember me is checked, we can use localStorage to persist the session
+        if (rememberMe) {
+          localStorage.setItem('rememberAuth', 'true');
+        } else {
+          localStorage.removeItem('rememberAuth');
+        }
+      }
       
       toast({
         title: isSignUp ? "Check your email to confirm signup!" : "Successfully signed in!",
