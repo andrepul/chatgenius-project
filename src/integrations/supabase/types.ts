@@ -9,7 +9,69 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      messages: {
+        Row: {
+          channel: string
+          content: string
+          created_at: string
+          id: number
+          is_dm: boolean | null
+          reactions: Json | null
+          recipient_id: string | null
+          reply_count: number | null
+          sender_id: string
+        }
+        Insert: {
+          channel?: string
+          content: string
+          created_at?: string
+          id?: number
+          is_dm?: boolean | null
+          reactions?: Json | null
+          recipient_id?: string | null
+          reply_count?: number | null
+          sender_id: string
+        }
+        Update: {
+          channel?: string
+          content?: string
+          created_at?: string
+          id?: number
+          is_dm?: boolean | null
+          reactions?: Json | null
+          recipient_id?: string | null
+          reply_count?: number | null
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          status: string | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id: string
+          status?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          status?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
