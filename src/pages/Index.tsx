@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import ChatSidebar from "@/components/ChatSidebar";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
@@ -169,7 +169,7 @@ function Index() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {messages.map((message) => (
+          {filteredMessages.map((message) => (
             <ChatMessage
               key={message.id}
               message={message}
