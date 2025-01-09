@@ -16,66 +16,60 @@ import { User } from "@supabase/supabase-js";
 
 function Index() {
   const [session, setSession] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeChannel, setActiveChannel] = useState("general");
   const [activeDM, setActiveDM] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      content: "Welcome to the chat!",
-      sender: "System",
-      timestamp: new Date(),
-      channel: "general",
-      replyCount: 0,
-      reactions: {},
-      status: "online"
-    },
-    {
-      id: 2,
-      content: "Hey everyone! 👋",
-      sender: "Sarah",
-      timestamp: new Date(Date.now() - 1000 * 60 * 5),
-      channel: "general",
-      replyCount: 0,
-      reactions: {},
-      status: "online"
-    },
-    {
-      id: 3,
-      content: "Hi Sarah, how are you?",
-      sender: "John",
-      timestamp: new Date(Date.now() - 1000 * 60 * 3),
-      isDM: true,
-      channel: null,
-      recipientId: "user1",
-      replyCount: 0,
-      reactions: {},
-      status: "away"
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   useEffect(() => {
     // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session?.user ?? null);
+    console.log('Checking session...');
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Session error:', error);
+        setError(error.message);
+      } else {
+        console.log('Session status:', session ? 'Logged in' : 'No session');
+        setSession(session?.user ?? null);
+      }
+      setLoading(false);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event);
       setSession(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Show loading state
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen text-red-500">
+        Error: {error}
+      </div>
+    );
+  }
+
   // If no session, show auth component
   if (!session) {
+    console.log('No session, showing Auth component');
     return <Auth />;
   }
 
+  console.log('Rendering main chat interface');
   const handleSendMessage = async (content: string, file?: File) => {
     let attachment;
     if (file) {
@@ -175,7 +169,7 @@ function Index() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {filteredMessages.map((message) => (
+          {messages.map((message) => (
             <ChatMessage
               key={message.id}
               message={message}
