@@ -70,19 +70,31 @@ function Index() {
       });
     } else {
       console.log('Fetched messages:', data);
-      setMessages(data || []);
+      const convertedMessages: Message[] = data?.map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender_id,
+        senderId: msg.sender_id,
+        timestamp: new Date(msg.created_at),
+        channel: msg.channel,
+        isDM: msg.is_dm,
+        recipientId: msg.recipient_id,
+        replyCount: msg.reply_count || 0,
+        reactions: msg.reactions as Record<string, string[]> || {},
+      })) || [];
+      setMessages(convertedMessages);
     }
   };
 
   const handleReaction = async (messageId: number, emoji: string) => {
     console.log('Handling reaction:', { messageId, emoji });
     
-    if (!session?.user) {
+    if (!session) {
       console.log('No user session, cannot react');
       return;
     }
 
-    const userId = session.user.id;
+    const userId = session.id;
     const message = messages.find(m => m.id === messageId);
     
     if (!message) {
@@ -90,18 +102,14 @@ function Index() {
       return;
     }
 
-    // Create a copy of the current reactions
     const updatedReactions = { ...message.reactions };
     
-    // If the emoji reaction exists and user has already reacted, remove their reaction
     if (updatedReactions[emoji] && updatedReactions[emoji].includes(userId)) {
       updatedReactions[emoji] = updatedReactions[emoji].filter(id => id !== userId);
-      // Remove the emoji key if no users are reacting with it
       if (updatedReactions[emoji].length === 0) {
         delete updatedReactions[emoji];
       }
     } else {
-      // Add the user's reaction
       if (!updatedReactions[emoji]) {
         updatedReactions[emoji] = [];
       }
@@ -116,7 +124,6 @@ function Index() {
 
       if (error) throw error;
 
-      // Update local state
       setMessages(messages.map(m => 
         m.id === messageId 
           ? { ...m, reactions: updatedReactions }
@@ -153,6 +160,8 @@ function Index() {
 
   console.log('Rendering main chat interface');
   const handleSendMessage = async (content: string, file?: File) => {
+    if (!session) return;
+
     let attachment;
     if (file) {
       const url = URL.createObjectURL(file);
@@ -163,27 +172,39 @@ function Index() {
       };
     }
 
-    const newMessage = {
+    const messageData = {
       content,
-      sender: session.user?.email || "Anonymous",
-      sender_id: session.user?.id,
+      sender_id: session.id,
       channel: activeDM ? null : activeChannel,
       is_dm: !!activeDM,
-      recipient_id: activeDM || undefined,
+      recipient_id: activeDM || null,
       reactions: {},
-      attachment
     };
 
     try {
       const { data, error } = await supabase
         .from('messages')
-        .insert([newMessage])
+        .insert([messageData])
         .select()
         .single();
 
       if (error) throw error;
 
-      setMessages([...messages, data]);
+      const newMessage: Message = {
+        id: data.id,
+        content: data.content,
+        sender: session.id,
+        senderId: data.sender_id,
+        timestamp: new Date(data.created_at),
+        channel: data.channel,
+        isDM: data.is_dm,
+        recipientId: data.recipient_id,
+        replyCount: data.reply_count || 0,
+        reactions: data.reactions as Record<string, string[]>,
+        attachment
+      };
+
+      setMessages([...messages, newMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -194,22 +215,11 @@ function Index() {
     }
   };
 
-  const handleChannelSelect = (channelName: string) => {
-    setActiveChannel(channelName);
-    if (!channelName.startsWith('dm-')) {
-      setActiveDM(null);
-    }
-  };
-
-  const handleDMSelect = (userId: string) => {
-    setActiveDM(userId);
-  };
-
   const filteredMessages = messages.filter((message) => {
     const matchesSearch = message.content.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesChannel = searchScope === "global" || 
       (activeDM 
-        ? message.is_dm && (message.recipient_id === activeDM || message.sender_id === session.user?.id)
+        ? message.isDM && (message.recipientId === activeDM || message.senderId === session?.id)
         : message.channel === activeChannel);
     return (!searchQuery || matchesSearch) && matchesChannel;
   });
@@ -268,7 +278,7 @@ function Index() {
             <ChatMessage
               key={message.id}
               message={message}
-              currentUser={session.user?.id}
+              currentUser={session.id}
               onReaction={handleReaction}
             />
           ))}

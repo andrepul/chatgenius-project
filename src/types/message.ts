@@ -2,12 +2,12 @@ export interface Message {
   id: number;
   content: string;
   sender: string;
-  senderId?: string;
+  senderId: string;
   timestamp: Date;
   channel: string | null;
-  isDM?: boolean;
-  recipientId?: string;
-  replyCount: number;
+  isDM: boolean | null;
+  recipientId: string | null;
+  replyCount: number | null;
   reactions: Record<string, string[]>;
   status?: "online" | "away" | "offline";
   attachment?: {
@@ -15,5 +15,5 @@ export interface Message {
     url: string;
     type: string;
   };
-  parentId?: number;  // Added this line to support thread replies
+  parentId?: number;
 }
