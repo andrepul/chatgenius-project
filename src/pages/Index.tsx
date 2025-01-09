@@ -55,6 +55,19 @@ function Index() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleChannelSelect = (channelName: string) => {
+    console.log('Channel selected:', channelName);
+    setActiveChannel(channelName);
+    if (!channelName.startsWith('dm-')) {
+      setActiveDM(null);
+    }
+  };
+
+  const handleDMSelect = (userId: string) => {
+    console.log('DM selected:', userId);
+    setActiveDM(userId);
+  };
+
   const fetchMessages = async () => {
     const { data, error } = await supabase
       .from('messages')
@@ -158,7 +171,6 @@ function Index() {
     return <Auth />;
   }
 
-  console.log('Rendering main chat interface');
   const handleSendMessage = async (content: string, file?: File) => {
     if (!session) return;
 
