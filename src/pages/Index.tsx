@@ -5,6 +5,7 @@ import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import Auth from "@/components/Auth";
 import { Search } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,9 +24,9 @@ function Index() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
   const [messages, setMessages] = useState<Message[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Check active session
     console.log('Checking session...');
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
@@ -34,27 +35,109 @@ function Index() {
       } else {
         console.log('Session status:', session ? 'Logged in' : 'No session');
         setSession(session?.user ?? null);
+        if (session?.user) {
+          fetchMessages();
+        }
       }
       setLoading(false);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth state changed:', _event);
       setSession(session?.user ?? null);
+      if (session?.user) {
+        fetchMessages();
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Show loading state
+  const fetchMessages = async () => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching messages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load messages",
+        variant: "destructive",
+      });
+    } else {
+      console.log('Fetched messages:', data);
+      setMessages(data || []);
+    }
+  };
+
+  const handleReaction = async (messageId: number, emoji: string) => {
+    console.log('Handling reaction:', { messageId, emoji });
+    
+    if (!session?.user) {
+      console.log('No user session, cannot react');
+      return;
+    }
+
+    const userId = session.user.id;
+    const message = messages.find(m => m.id === messageId);
+    
+    if (!message) {
+      console.error('Message not found:', messageId);
+      return;
+    }
+
+    // Create a copy of the current reactions
+    const updatedReactions = { ...message.reactions };
+    
+    // If the emoji reaction exists and user has already reacted, remove their reaction
+    if (updatedReactions[emoji] && updatedReactions[emoji].includes(userId)) {
+      updatedReactions[emoji] = updatedReactions[emoji].filter(id => id !== userId);
+      // Remove the emoji key if no users are reacting with it
+      if (updatedReactions[emoji].length === 0) {
+        delete updatedReactions[emoji];
+      }
+    } else {
+      // Add the user's reaction
+      if (!updatedReactions[emoji]) {
+        updatedReactions[emoji] = [];
+      }
+      updatedReactions[emoji] = [...updatedReactions[emoji], userId];
+    }
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ reactions: updatedReactions })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      // Update local state
+      setMessages(messages.map(m => 
+        m.id === messageId 
+          ? { ...m, reactions: updatedReactions }
+          : m
+      ));
+
+      console.log('Reaction updated successfully');
+    } catch (error) {
+      console.error('Error updating reaction:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update reaction",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
-  // Show error state
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen text-red-500">
@@ -63,7 +146,6 @@ function Index() {
     );
   }
 
-  // If no session, show auth component
   if (!session) {
     console.log('No session, showing Auth component');
     return <Auth />;
@@ -73,8 +155,6 @@ function Index() {
   const handleSendMessage = async (content: string, file?: File) => {
     let attachment;
     if (file) {
-      // In a real app, you would upload the file to a storage service
-      // and get back a URL. For now, we'll create an object URL
       const url = URL.createObjectURL(file);
       attachment = {
         name: file.name,
@@ -83,20 +163,35 @@ function Index() {
       };
     }
 
-    const newMessage: Message = {
-      id: messages.length + 1,
+    const newMessage = {
       content,
-      sender: "You",
-      senderId: session.id, // Add sender ID
-      timestamp: new Date(),
+      sender: session.user?.email || "Anonymous",
+      sender_id: session.user?.id,
       channel: activeDM ? null : activeChannel,
-      isDM: !!activeDM,
-      recipientId: activeDM || undefined,
-      replyCount: 0,
+      is_dm: !!activeDM,
+      recipient_id: activeDM || undefined,
       reactions: {},
       attachment
     };
-    setMessages([...messages, newMessage]);
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert([newMessage])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setMessages([...messages, data]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleChannelSelect = (channelName: string) => {
@@ -114,7 +209,7 @@ function Index() {
     const matchesSearch = message.content.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesChannel = searchScope === "global" || 
       (activeDM 
-        ? message.isDM && (message.recipientId === activeDM || message.sender === "You")
+        ? message.is_dm && (message.recipient_id === activeDM || message.sender_id === session.user?.id)
         : message.channel === activeChannel);
     return (!searchQuery || matchesSearch) && matchesChannel;
   });
@@ -173,7 +268,8 @@ function Index() {
             <ChatMessage
               key={message.id}
               message={message}
-              currentUser="You"
+              currentUser={session.user?.id}
+              onReaction={handleReaction}
             />
           ))}
         </div>
