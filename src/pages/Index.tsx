@@ -45,6 +45,7 @@ function Index() {
   }, []);
 
   const fetchMessages = async () => {
+    console.log('Fetching messages...');
     const { data, error } = await supabase
       .from('messages')
       .select('*')
@@ -118,10 +119,14 @@ function Index() {
         recipientId: data.recipient_id,
         replyCount: data.reply_count || 0,
         reactions: data.reactions as Record<string, string[]>,
-        attachment
+        attachment,
+        parentId: data.parent_id
       };
 
-      setMessages([...messages, newMessage]);
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Refresh messages to ensure we have the latest state
+      fetchMessages();
     } catch (error) {
       console.error('Error sending message:', error);
       toast({

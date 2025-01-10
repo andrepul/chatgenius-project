@@ -16,22 +16,32 @@ function ThreadView({ parentMessage, messages, onClose, onSendReply }: ThreadVie
 
   // Get the root parent message (the one that started the thread)
   const getRootParentId = (message: Message): number => {
+    console.log('Finding root parent for message:', message);
     const parent = messages.find(m => m.id === message.parentId);
     if (!parent || !parent.parentId) {
-      return message.parentId || message.id;
+      const rootId = message.parentId || message.id;
+      console.log('Root parent found:', rootId);
+      return rootId;
     }
     return getRootParentId(parent);
   };
 
-  // Get all messages in this thread (messages that are part of the same thread)
+  // Get all messages in this thread
   const rootParentId = getRootParentId(parentMessage);
-  const threadMessages = messages.filter(
-    (m) => 
-      m.id === rootParentId || // Include the root message
-      m.parentId === rootParentId || // Include direct replies to root
-      m.id === parentMessage.id || // Include the clicked message
-      m.parentId === parentMessage.id // Include replies to clicked message
-  ).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  console.log('Root parent ID:', rootParentId);
+  
+  const threadMessages = messages.filter(m => {
+    const isRootMessage = m.id === rootParentId;
+    const isDirectReply = m.parentId === rootParentId;
+    const isClickedMessage = m.id === parentMessage.id;
+    const isReplyToClicked = m.parentId === parentMessage.id;
+    
+    const included = isRootMessage || isDirectReply || isClickedMessage || isReplyToClicked;
+    if (included) {
+      console.log('Including message in thread:', m);
+    }
+    return included;
+  }).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
   console.log('Thread messages:', threadMessages);
 

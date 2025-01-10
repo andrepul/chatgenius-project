@@ -6,6 +6,7 @@ import ChatInput from "./ChatInput";
 import ThreadView from "./ThreadView";
 import { Message } from "@/types/message";
 import { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 interface ChatLayoutProps {
   session: User;
@@ -38,6 +39,44 @@ const ChatLayout = ({
   const handleCloseThread = () => {
     console.log('Closing thread');
     setActiveThread(null);
+  };
+
+  const handleSendReply = async (content: string, parentId: number, attachment?: File) => {
+    console.log('Sending reply:', { content, parentId, attachment });
+    
+    const messageData = {
+      content,
+      sender_id: session.id,
+      channel: activeDM ? null : activeChannel,
+      is_dm: !!activeDM,
+      recipient_id: activeDM || null,
+      parent_id: parentId,
+      reactions: {},
+    };
+
+    try {
+      // Insert the reply
+      const { data: newMessage, error: insertError } = await supabase
+        .from('messages')
+        .insert([messageData])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Update the reply count of the parent message
+      const { error: updateError } = await supabase
+        .from('messages')
+        .update({ reply_count: messages.find(m => m.id === parentId)?.replyCount! + 1 })
+        .eq('id', parentId);
+
+      if (updateError) throw updateError;
+
+      // Trigger a refresh of messages
+      onSendMessage(content, attachment);
+    } catch (error) {
+      console.error('Error sending reply:', error);
+    }
   };
 
   const filteredMessages = messages.filter((message) => {
@@ -95,10 +134,7 @@ const ChatLayout = ({
           parentMessage={activeThread}
           messages={messages}
           onClose={handleCloseThread}
-          onSendReply={async (content: string, parentId: number, attachment?: File) => {
-            // We'll implement this in the next iteration
-            console.log('Sending reply:', { content, parentId, attachment });
-          }}
+          onSendReply={handleSendReply}
         />
       )}
     </div>
