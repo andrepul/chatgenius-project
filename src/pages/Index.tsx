@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import ChatSidebar from "@/components/ChatSidebar";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
+import ThreadView from "@/components/ThreadView";
 import Auth from "@/components/Auth";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +55,97 @@ function Index() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const [activeThread, setActiveThread] = useState<Message | null>(null);
+
+  const handleThreadClick = (message: Message) => {
+    console.log('Opening thread for message:', message);
+    setActiveThread(message);
+  };
+
+  const handleCloseThread = () => {
+    console.log('Closing thread');
+    setActiveThread(null);
+  };
+
+  const handleSendReply = async (content: string, parentId: number, attachment?: File) => {
+    console.log('Sending reply:', { content, parentId, attachment });
+    if (!session) return;
+
+    let attachmentData;
+    if (attachment) {
+      const url = URL.createObjectURL(attachment);
+      attachmentData = {
+        name: attachment.name,
+        url,
+        type: attachment.type
+      };
+    }
+
+    const messageData = {
+      content,
+      sender_id: session.id,
+      channel: activeChannel,
+      parent_id: parentId,
+      reactions: {},
+    };
+
+    try {
+      // First, insert the reply
+      const { data: replyData, error: replyError } = await supabase
+        .from('messages')
+        .insert([messageData])
+        .select()
+        .single();
+
+      if (replyError) throw replyError;
+
+      // Then, update the parent message's reply count
+      const { error: updateError } = await supabase
+        .from('messages')
+        .update({ reply_count: (activeThread?.replyCount || 0) + 1 })
+        .eq('id', parentId);
+
+      if (updateError) throw updateError;
+
+      const newMessage: Message = {
+        id: replyData.id,
+        content: replyData.content,
+        sender: session.id,
+        senderId: replyData.sender_id,
+        timestamp: new Date(replyData.created_at),
+        channel: replyData.channel,
+        isDM: false,
+        recipientId: null,
+        replyCount: 0,
+        reactions: {},
+        parentId: replyData.parent_id,
+        attachment: attachmentData
+      };
+
+      setMessages(prevMessages => {
+        const updatedMessages = [...prevMessages];
+        // Update the parent message's reply count
+        const parentIndex = updatedMessages.findIndex(m => m.id === parentId);
+        if (parentIndex !== -1) {
+          updatedMessages[parentIndex] = {
+            ...updatedMessages[parentIndex],
+            replyCount: (updatedMessages[parentIndex].replyCount || 0) + 1
+          };
+        }
+        // Add the new reply
+        return [...updatedMessages, newMessage];
+      });
+
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send reply",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleChannelSelect = (channelName: string) => {
     console.log('Channel selected:', channelName);
@@ -292,6 +384,8 @@ function Index() {
               message={message}
               currentUser={session.id}
               onReaction={handleReaction}
+              onThreadClick={handleThreadClick}
+              showThread={true}
             />
           ))}
         </div>
@@ -302,6 +396,15 @@ function Index() {
           placeholder={activeDM ? `Message ${getDisplayName()}` : undefined}
         />
       </div>
+
+      {activeThread && (
+        <ThreadView
+          parentMessage={activeThread}
+          messages={messages}
+          onClose={handleCloseThread}
+          onSendReply={handleSendReply}
+        />
+      )}
     </div>
   );
 }
