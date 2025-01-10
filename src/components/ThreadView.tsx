@@ -14,10 +14,26 @@ interface ThreadViewProps {
 function ThreadView({ parentMessage, messages, onClose, onSendReply }: ThreadViewProps) {
   if (!parentMessage) return null;
 
-  // Get all messages in this thread (messages that have this message as parent)
+  // Get the root parent message (the one that started the thread)
+  const getRootParentId = (message: Message): number => {
+    const parent = messages.find(m => m.id === message.parentId);
+    if (!parent || !parent.parentId) {
+      return message.parentId || message.id;
+    }
+    return getRootParentId(parent);
+  };
+
+  // Get all messages in this thread (messages that are part of the same thread)
+  const rootParentId = getRootParentId(parentMessage);
   const threadMessages = messages.filter(
-    (m) => m.parentId === parentMessage.id || m.id === parentMessage.id
+    (m) => 
+      m.id === rootParentId || // Include the root message
+      m.parentId === rootParentId || // Include direct replies to root
+      m.id === parentMessage.id || // Include the clicked message
+      m.parentId === parentMessage.id // Include replies to clicked message
   ).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+  console.log('Thread messages:', threadMessages);
 
   return (
     <div className="fixed right-0 top-0 w-96 h-full bg-white border-l shadow-lg flex flex-col">
