@@ -19,6 +19,11 @@ interface ChatLayoutProps {
   onDMSelect: (userId: string) => void;
 }
 
+interface DMUser {
+  id: string;
+  name: string;
+}
+
 const ChatLayout = ({
   session,
   messages,
@@ -32,6 +37,14 @@ const ChatLayout = ({
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
   const [activeThread, setActiveThread] = useState<Message | null>(null);
   const { toast } = useToast();
+
+  // Mock DM users with actual UUIDs
+  const dmUsers: Record<string, DMUser> = {
+    // These should be replaced with actual user UUIDs from your auth system
+    "d7bed21c-5a38-4c44-87f5-7776d0ca3c33": { id: "d7bed21c-5a38-4c44-87f5-7776d0ca3c33", name: "Sarah Smith" },
+    "e9b74d3d-87a4-4c43-8f3e-64c2d6d65bd0": { id: "e9b74d3d-87a4-4c43-8f3e-64c2d6d65bd0", name: "John Doe" },
+    "f6d8a35b-2e9c-4c47-8f1a-25d2d6d65bd0": { id: "f6d8a35b-2e9c-4c47-8f1a-25d2d6d65bd0", name: "Alice Johnson" }
+  };
 
   const handleThreadClick = (message: Message) => {
     console.log('Opening thread for message:', message);
@@ -97,12 +110,8 @@ const ChatLayout = ({
 
   const getDisplayName = () => {
     if (activeDM) {
-      const dmUser = {
-        user1: "Sarah Smith",
-        user2: "John Doe",
-        user3: "Alice Johnson"
-      }[activeDM];
-      return dmUser || "Unknown User";
+      const dmUser = dmUsers[activeDM];
+      return dmUser ? dmUser.name : "Unknown User";
     }
     return `#${activeChannel}`;
   };
