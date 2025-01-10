@@ -41,24 +41,34 @@ function Index() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Subscribe to realtime messages
+    const messagesSubscription = supabase
+      .channel('messages')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        console.log('Messages changed, fetching updates...');
+        fetchMessages();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      messagesSubscription.unsubscribe();
+    };
   }, []);
 
   const fetchMessages = async () => {
     console.log('Fetching messages...');
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .order('created_at', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .order('created_at', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching messages:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load messages",
-        variant: "destructive",
-      });
-    } else {
+      if (error) {
+        console.error('Error fetching messages:', error);
+        throw error;
+      }
+
       console.log('Fetched messages:', data);
       const convertedMessages: Message[] = data?.map(msg => ({
         id: msg.id,
@@ -73,7 +83,15 @@ function Index() {
         reactions: msg.reactions as Record<string, string[]> || {},
         parentId: msg.parent_id,
       })) || [];
+
       setMessages(convertedMessages);
+    } catch (error) {
+      console.error('Error in fetchMessages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load messages",
+        variant: "destructive",
+      });
     }
   };
 
@@ -125,8 +143,7 @@ function Index() {
 
       setMessages(prev => [...prev, newMessage]);
       
-      // Refresh messages to ensure we have the latest state
-      fetchMessages();
+      // Messages will be automatically refreshed via the subscription
     } catch (error) {
       console.error('Error sending message:', error);
       toast({

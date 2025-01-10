@@ -7,6 +7,7 @@ import ThreadView from "./ThreadView";
 import { Message } from "@/types/message";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatLayoutProps {
   session: User;
@@ -30,6 +31,7 @@ const ChatLayout = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
   const [activeThread, setActiveThread] = useState<Message | null>(null);
+  const { toast } = useToast();
 
   const handleThreadClick = (message: Message) => {
     console.log('Opening thread for message:', message);
@@ -72,10 +74,15 @@ const ChatLayout = ({
 
       if (updateError) throw updateError;
 
-      // Trigger a refresh of messages
+      // The message will be automatically refreshed via the subscription
       onSendMessage(content, attachment);
     } catch (error) {
       console.error('Error sending reply:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send reply",
+        variant: "destructive",
+      });
     }
   };
 
