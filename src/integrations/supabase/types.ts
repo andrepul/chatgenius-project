@@ -16,6 +16,7 @@ export type Database = {
           created_at: string
           id: number
           is_dm: boolean | null
+          parent_id: number | null
           reactions: Json | null
           recipient_id: string | null
           reply_count: number | null
@@ -27,6 +28,7 @@ export type Database = {
           created_at?: string
           id?: number
           is_dm?: boolean | null
+          parent_id?: number | null
           reactions?: Json | null
           recipient_id?: string | null
           reply_count?: number | null
@@ -38,12 +40,21 @@ export type Database = {
           created_at?: string
           id?: number
           is_dm?: boolean | null
+          parent_id?: number | null
           reactions?: Json | null
           recipient_id?: string | null
           reply_count?: number | null
           sender_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

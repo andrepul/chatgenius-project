@@ -107,7 +107,7 @@ const ChatMessage = ({
               >
                 <MessageSquare size={14} />
                 {message.replyCount === 0
-                  ? "Start thread"
+                  ? "Reply"
                   : `${message.replyCount} ${message.replyCount === 1 ? "reply" : "replies"}`}
               </button>
             )}
