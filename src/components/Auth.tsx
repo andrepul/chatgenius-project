@@ -11,6 +11,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState(""); // New state for username
   const [isSignUp, setIsSignUp] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
@@ -40,14 +41,33 @@ export default function Auth() {
       }
 
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ 
+        // Sign up with email and create profile
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
-            data: { timestamp: new Date().toISOString() }
+            data: { 
+              timestamp: new Date().toISOString(),
+              username: username || email // Use username if provided, otherwise use email
+            }
           }
         });
-        if (error) throw error;
+        
+        if (signUpError) throw signUpError;
+
+        // Create profile entry
+        if (authData.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: authData.user.id,
+                username: username || email // Use username if provided, otherwise use email
+              }
+            ]);
+
+          if (profileError) throw profileError;
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ 
           email, 
@@ -55,7 +75,6 @@ export default function Auth() {
         });
         if (error) throw error;
 
-        // If remember me is checked, we can use localStorage to persist the session
         if (rememberMe) {
           localStorage.setItem('rememberAuth', 'true');
         } else {
@@ -70,7 +89,6 @@ export default function Auth() {
     } catch (error) {
       let errorMessage = "An unexpected error occurred";
       
-      // Provide more user-friendly error messages
       if (error.message.includes("Invalid login")) {
         errorMessage = "Invalid email or password";
       } else if (error.message.includes("Email not confirmed")) {
@@ -108,6 +126,14 @@ export default function Auth() {
 
         <form className="mt-8 space-y-6" onSubmit={handleAuth}>
           <div className="space-y-4 rounded-md shadow-sm">
+            {isSignUp && (
+              <Input
+                type="text"
+                placeholder="Username (optional)"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            )}
             <Input
               type="email"
               placeholder="Email address"
