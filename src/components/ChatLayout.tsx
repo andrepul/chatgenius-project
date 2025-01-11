@@ -57,10 +57,13 @@ const ChatLayout = ({
   const handleSendReply = async (content: string, parentId: number, attachment?: File) => {
     console.log('Sending reply:', { content, parentId, attachment });
     
+    const currentChannel = activeDM ? `dm-${activeDM}` : activeChannel;
+    console.log('Current channel for reply:', currentChannel);
+    
     const messageData = {
       content,
       sender_id: session.id,
-      channel: activeDM ? `dm-${activeDM}` : activeChannel, // Ensure channel is never null
+      channel: currentChannel,
       is_dm: !!activeDM,
       recipient_id: activeDM || null,
       parent_id: parentId,
@@ -68,7 +71,7 @@ const ChatLayout = ({
     };
 
     try {
-      // Insert the reply
+      console.log('Inserting reply with data:', messageData);
       const { data: newMessage, error: insertError } = await supabase
         .from('messages')
         .insert([messageData])
@@ -77,7 +80,8 @@ const ChatLayout = ({
 
       if (insertError) throw insertError;
 
-      // Update the reply count of the parent message
+      console.log('Reply inserted successfully:', newMessage);
+
       const { error: updateError } = await supabase
         .from('messages')
         .update({ reply_count: messages.find(m => m.id === parentId)?.replyCount! + 1 })
@@ -85,7 +89,6 @@ const ChatLayout = ({
 
       if (updateError) throw updateError;
 
-      // The message will be automatically refreshed via the subscription
       onSendMessage(content, attachment);
     } catch (error) {
       console.error('Error sending reply:', error);
