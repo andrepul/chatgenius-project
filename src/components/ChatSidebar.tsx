@@ -14,9 +14,21 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
   ];
 
   const dms = [
-    { id: "user1", name: "Sarah Smith", status: "online" },
-    { id: "user2", name: "John Doe", status: "away" },
-    { id: "user3", name: "Alice Johnson", status: "offline" },
+    { 
+      id: "d7bed21c-5a38-4c44-87f5-7776d0ca3c33", 
+      name: "Sarah Smith", 
+      status: "online" 
+    },
+    { 
+      id: "e9b74d3d-87a4-4c43-8f3e-64c2d6d65bd0", 
+      name: "John Doe", 
+      status: "away" 
+    },
+    { 
+      id: "f6d8a35b-2e9c-4c47-8f1a-25d2d6d65bd0", 
+      name: "Alice Johnson", 
+      status: "offline" 
+    },
   ];
 
   const getStatusColor = (status: string) => {
@@ -71,6 +83,7 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
                     activeChannel === `dm-${user.id}` ? 'bg-chat-hover' : ''
                   }`}
                   onClick={() => {
+                    console.log('DM clicked:', user.id);
                     onChannelSelect(`dm-${user.id}`);
                     onDMSelect?.(user.id);
                   }}
