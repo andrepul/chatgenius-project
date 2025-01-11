@@ -1,6 +1,8 @@
 import { MessageSquare, Circle, Download } from "lucide-react";
 import { Message } from "@/types/message";
 import EmojiPicker from "./EmojiPicker";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 interface ChatMessageProps {
   message: Message;
@@ -17,8 +19,49 @@ const ChatMessage = ({
   onReaction,
   currentUser = "You",
 }: ChatMessageProps) => {
+  const [senderName, setSenderName] = useState<string>("Loading...");
   const reactions = message.reactions || {};
   
+  useEffect(() => {
+    const fetchSenderName = async () => {
+      try {
+        // First try to get the profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', message.sender)
+          .single();
+
+        if (profile?.username) {
+          console.log('Found username:', profile.username);
+          setSenderName(profile.username);
+          return;
+        }
+
+        // If no profile username, try to get the email
+        const { data: user, error: userError } = await supabase
+          .from('auth.users')
+          .select('email')
+          .eq('id', message.sender)
+          .single();
+
+        if (user?.email) {
+          console.log('Found email:', user.email);
+          setSenderName(user.email);
+          return;
+        }
+
+        // If all else fails
+        setSenderName('Unknown User');
+      } catch (error) {
+        console.error('Error fetching sender name:', error);
+        setSenderName('Unknown User');
+      }
+    };
+
+    fetchSenderName();
+  }, [message.sender]);
+
   const getStatusColor = (status?: string) => {
     switch (status) {
       case "online":
@@ -44,7 +87,7 @@ const ChatMessage = ({
       <div className="flex items-start space-x-3">
         <div className="relative">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
-            {message.sender[0].toUpperCase()}
+            {senderName[0].toUpperCase()}
           </div>
           <Circle 
             className={`absolute bottom-0 right-0 w-3 h-3 ${getStatusColor(message.status)} fill-current`}
@@ -52,7 +95,7 @@ const ChatMessage = ({
         </div>
         <div className="flex-1">
           <div className="flex items-center space-x-2">
-            <span className="font-medium">{message.sender}</span>
+            <span className="font-medium">{senderName}</span>
             <span className="text-xs text-muted-foreground">
               {new Intl.DateTimeFormat([], {
                 hour: "numeric",
