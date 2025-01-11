@@ -25,36 +25,28 @@ const ChatMessage = ({
   useEffect(() => {
     const fetchSenderName = async () => {
       try {
-        // First try to get the profile
-        const { data: profile, error: profileError } = await supabase
+        console.log('Fetching sender name for:', message.sender);
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('username')
           .eq('id', message.sender)
-          .single();
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          setSenderName('Unknown User');
+          return;
+        }
 
         if (profile?.username) {
           console.log('Found username:', profile.username);
           setSenderName(profile.username);
-          return;
+        } else {
+          console.log('No username found, using Unknown User');
+          setSenderName('Unknown User');
         }
-
-        // If no profile username, try to get the email
-        const { data: user, error: userError } = await supabase
-          .from('auth.users')
-          .select('email')
-          .eq('id', message.sender)
-          .single();
-
-        if (user?.email) {
-          console.log('Found email:', user.email);
-          setSenderName(user.email);
-          return;
-        }
-
-        // If all else fails
-        setSenderName('Unknown User');
       } catch (error) {
-        console.error('Error fetching sender name:', error);
+        console.error('Error in fetchSenderName:', error);
         setSenderName('Unknown User');
       }
     };
