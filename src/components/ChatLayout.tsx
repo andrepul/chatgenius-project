@@ -40,7 +40,6 @@ const ChatLayout = ({
 
   // Mock DM users with actual UUIDs
   const dmUsers: Record<string, DMUser> = {
-    // These should be replaced with actual user UUIDs from your auth system
     "d7bed21c-5a38-4c44-87f5-7776d0ca3c33": { id: "d7bed21c-5a38-4c44-87f5-7776d0ca3c33", name: "Sarah Smith" },
     "e9b74d3d-87a4-4c43-8f3e-64c2d6d65bd0": { id: "e9b74d3d-87a4-4c43-8f3e-64c2d6d65bd0", name: "John Doe" },
     "f6d8a35b-2e9c-4c47-8f1a-25d2d6d65bd0": { id: "f6d8a35b-2e9c-4c47-8f1a-25d2d6d65bd0", name: "Alice Johnson" }
@@ -62,7 +61,7 @@ const ChatLayout = ({
     const messageData = {
       content,
       sender_id: session.id,
-      channel: activeDM ? null : activeChannel,
+      channel: activeDM ? `dm-${activeDM}` : activeChannel, // Ensure channel is never null
       is_dm: !!activeDM,
       recipient_id: activeDM || null,
       parent_id: parentId,
