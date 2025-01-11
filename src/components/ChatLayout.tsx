@@ -38,7 +38,6 @@ const ChatLayout = ({
   const [activeThread, setActiveThread] = useState<Message | null>(null);
   const { toast } = useToast();
 
-  // Mock DM users with actual UUIDs
   const dmUsers: Record<string, DMUser> = {
     "d7bed21c-5a38-4c44-87f5-7776d0ca3c33": { id: "d7bed21c-5a38-4c44-87f5-7776d0ca3c33", name: "Sarah Smith" },
     "e9b74d3d-87a4-4c43-8f3e-64c2d6d65bd0": { id: "e9b74d3d-87a4-4c43-8f3e-64c2d6d65bd0", name: "John Doe" },
