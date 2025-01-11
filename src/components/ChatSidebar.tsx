@@ -1,4 +1,5 @@
-import { Hash, ChevronDown, MessageSquare, Circle } from "lucide-react";
+import { Hash, ChevronDown, MessageSquare, Circle, User, ChevronRight } from "lucide-react";
+import { useState } from "react";
 
 interface ChatSidebarProps {
   activeChannel: string;
@@ -7,6 +8,19 @@ interface ChatSidebarProps {
 }
 
 const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebarProps) => {
+  const [sectionsState, setSectionsState] = useState({
+    channels: true,
+    dms: true,
+    users: true
+  });
+
+  const toggleSection = (section: keyof typeof sectionsState) => {
+    setSectionsState(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
   const channels = [
     { id: 1, name: "general" },
     { id: 2, name: "random" },
@@ -30,6 +44,8 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
       status: "offline" 
     },
   ];
+
+  const users = dms; // For now, using the same data as DMs. In a real app, this would come from the profiles table
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -55,50 +71,95 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
       
       <div className="flex-1 overflow-y-auto">
         <div className="p-4">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-2">Channels</h2>
-          <ul className="space-y-1">
-            {channels.map((channel) => (
-              <li key={channel.id}>
-                <button 
-                  className={`w-full text-left flex items-center space-x-2 text-secondary-foreground hover:bg-chat-hover rounded p-2 ${
-                    activeChannel === channel.name ? 'bg-chat-hover' : ''
-                  }`}
-                  onClick={() => onChannelSelect(channel.name)}
-                >
-                  <Hash size={18} />
-                  <span>{channel.name}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <button 
+            onClick={() => toggleSection('channels')}
+            className="w-full text-left flex items-center justify-between text-sm font-semibold text-muted-foreground mb-2 hover:text-secondary-foreground"
+          >
+            <span>Channels</span>
+            {sectionsState.channels ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </button>
+          {sectionsState.channels && (
+            <ul className="space-y-1">
+              {channels.map((channel) => (
+                <li key={channel.id}>
+                  <button 
+                    className={`w-full text-left flex items-center space-x-2 text-secondary-foreground hover:bg-chat-hover rounded p-2 ${
+                      activeChannel === channel.name ? 'bg-chat-hover' : ''
+                    }`}
+                    onClick={() => onChannelSelect(channel.name)}
+                  >
+                    <Hash size={18} />
+                    <span>{channel.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="p-4">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-2">Direct Messages</h2>
-          <ul className="space-y-1">
-            {dms.map((user) => (
-              <li key={user.id}>
-                <button 
-                  className={`w-full text-left flex items-center space-x-2 text-secondary-foreground hover:bg-chat-hover rounded p-2 ${
-                    activeChannel === `dm-${user.id}` ? 'bg-chat-hover' : ''
-                  }`}
-                  onClick={() => {
-                    console.log('DM clicked:', user.id);
-                    onChannelSelect(`dm-${user.id}`);
-                    onDMSelect?.(user.id);
-                  }}
-                >
-                  <div className="relative">
-                    <MessageSquare size={18} />
-                    <Circle 
-                      className={`absolute bottom-0 right-0 w-2 h-2 ${getStatusColor(user.status)} fill-current`}
-                    />
-                  </div>
-                  <span>{user.name}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <button 
+            onClick={() => toggleSection('dms')}
+            className="w-full text-left flex items-center justify-between text-sm font-semibold text-muted-foreground mb-2 hover:text-secondary-foreground"
+          >
+            <span>Direct Messages</span>
+            {sectionsState.dms ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </button>
+          {sectionsState.dms && (
+            <ul className="space-y-1">
+              {dms.map((user) => (
+                <li key={user.id}>
+                  <button 
+                    className={`w-full text-left flex items-center space-x-2 text-secondary-foreground hover:bg-chat-hover rounded p-2 ${
+                      activeChannel === `dm-${user.id}` ? 'bg-chat-hover' : ''
+                    }`}
+                    onClick={() => {
+                      console.log('DM clicked:', user.id);
+                      onChannelSelect(`dm-${user.id}`);
+                      onDMSelect?.(user.id);
+                    }}
+                  >
+                    <div className="relative">
+                      <MessageSquare size={18} />
+                      <Circle 
+                        className={`absolute bottom-0 right-0 w-2 h-2 ${getStatusColor(user.status)} fill-current`}
+                      />
+                    </div>
+                    <span>{user.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="p-4">
+          <button 
+            onClick={() => toggleSection('users')}
+            className="w-full text-left flex items-center justify-between text-sm font-semibold text-muted-foreground mb-2 hover:text-secondary-foreground"
+          >
+            <span>Users</span>
+            {sectionsState.users ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </button>
+          {sectionsState.users && (
+            <ul className="space-y-1">
+              {users.map((user) => (
+                <li key={user.id}>
+                  <button 
+                    className="w-full text-left flex items-center space-x-2 text-secondary-foreground hover:bg-chat-hover rounded p-2"
+                  >
+                    <div className="relative">
+                      <User size={18} />
+                      <Circle 
+                        className={`absolute bottom-0 right-0 w-2 h-2 ${getStatusColor(user.status)} fill-current`}
+                      />
+                    </div>
+                    <span>{user.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
