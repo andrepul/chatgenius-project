@@ -41,7 +41,6 @@ function Index() {
       }
     });
 
-    // Subscribe to realtime messages
     const messagesSubscription = supabase
       .channel('messages')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
@@ -108,16 +107,20 @@ function Index() {
       };
     }
 
+    const currentChannel = activeDM ? `dm-${activeDM}` : activeChannel;
+    console.log('Sending message to channel:', currentChannel);
+
     const messageData = {
       content,
       sender_id: session.id,
-      channel: activeDM ? null : activeChannel,
+      channel: currentChannel,
       is_dm: !!activeDM,
       recipient_id: activeDM || null,
       reactions: {},
     };
 
     try {
+      console.log('Sending message with data:', messageData);
       const { data, error } = await supabase
         .from('messages')
         .insert([messageData])
@@ -126,6 +129,7 @@ function Index() {
 
       if (error) throw error;
 
+      console.log('Message sent successfully:', data);
       const newMessage: Message = {
         id: data.id,
         content: data.content,
@@ -142,8 +146,6 @@ function Index() {
       };
 
       setMessages(prev => [...prev, newMessage]);
-      
-      // Messages will be automatically refreshed via the subscription
     } catch (error) {
       console.error('Error sending message:', error);
       toast({

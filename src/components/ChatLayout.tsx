@@ -104,7 +104,7 @@ const ChatLayout = ({
     const matchesSearch = message.content.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesChannel = searchScope === "global" || 
       (activeDM 
-        ? message.isDM && (message.recipientId === activeDM || message.senderId === session?.id)
+        ? message.isDM && message.channel === `dm-${activeDM}`
         : message.channel === activeChannel);
     return (!searchQuery || matchesSearch) && matchesChannel;
   });
