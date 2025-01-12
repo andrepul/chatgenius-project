@@ -6,17 +6,42 @@ import { useToast } from "@/components/ui/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { AuthError, AuthApiError } from "@supabase/supabase-js";
 
 export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState(""); // New state for username
+  const [username, setUsername] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [error, setError] = useState("");
   const { toast } = useToast();
+
+  const getErrorMessage = (error: AuthError) => {
+    console.error('Auth error:', error);
+    
+    if (error instanceof AuthApiError) {
+      switch (error.status) {
+        case 400:
+          if (error.message.includes("Password")) {
+            return "Password must be at least 6 characters long";
+          }
+          if (error.message.includes("Email")) {
+            return "Please enter a valid email address";
+          }
+          return error.message;
+        case 422:
+          return "Invalid email or password format";
+        case 401:
+          return "Invalid credentials";
+        default:
+          return error.message;
+      }
+    }
+    return "An unexpected error occurred. Please try again.";
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,34 +66,46 @@ export default function Auth() {
       }
 
       if (isSignUp) {
-        // Sign up with email and create profile
+        console.log('Attempting signup with:', { email, username });
         const { data: authData, error: signUpError } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
             data: { 
+              username: username || email,
               timestamp: new Date().toISOString(),
-              username: username || email // Use username if provided, otherwise use email
             }
           }
         });
         
         if (signUpError) throw signUpError;
+        console.log('Signup successful:', authData);
 
         // Create profile entry
         if (authData.user) {
+          console.log('Creating profile for user:', authData.user.id);
           const { error: profileError } = await supabase
             .from('profiles')
             .insert([
               { 
                 id: authData.user.id,
-                username: username || email // Use username if provided, otherwise use email
+                username: username || email,
+                status: 'online'
               }
             ]);
 
-          if (profileError) throw profileError;
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            throw new Error('Failed to create user profile');
+          }
         }
+
+        toast({
+          title: "Check your email to confirm signup!",
+          duration: 3000,
+        });
       } else {
+        console.log('Attempting signin with email:', email);
         const { error } = await supabase.auth.signInWithPassword({ 
           email, 
           password 
@@ -80,26 +117,15 @@ export default function Auth() {
         } else {
           localStorage.removeItem('rememberAuth');
         }
+
+        toast({
+          title: "Successfully signed in!",
+          duration: 3000,
+        });
       }
-      
-      toast({
-        title: isSignUp ? "Check your email to confirm signup!" : "Successfully signed in!",
-        duration: 3000,
-      });
     } catch (error) {
-      let errorMessage = "An unexpected error occurred";
-      
-      if (error.message.includes("Invalid login")) {
-        errorMessage = "Invalid email or password";
-      } else if (error.message.includes("Email not confirmed")) {
-        errorMessage = "Please check your email and confirm your account first";
-      } else if (error.message.includes("Password should be")) {
-        errorMessage = "Password must be at least 6 characters long";
-      } else if (error.message.includes("already registered")) {
-        errorMessage = "This email is already registered. Try signing in instead";
-      }
-      
-      setError(errorMessage);
+      console.error('Authentication error:', error);
+      setError(getErrorMessage(error as AuthError));
     } finally {
       setLoading(false);
     }
