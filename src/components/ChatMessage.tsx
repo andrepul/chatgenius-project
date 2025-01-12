@@ -20,15 +20,16 @@ const ChatMessage = ({
   currentUser = "You",
 }: ChatMessageProps) => {
   const [senderName, setSenderName] = useState<string>("Loading...");
+  const [senderStatus, setSenderStatus] = useState<string>("offline");
   const reactions = message.reactions || {};
   
   useEffect(() => {
-    const fetchSenderName = async () => {
+    const fetchSenderInfo = async () => {
       try {
-        console.log('Fetching sender name for:', message.sender);
+        console.log('Fetching sender info for:', message.sender);
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('username')
+          .select('username, status')
           .eq('id', message.sender)
           .maybeSingle();
 
@@ -39,19 +40,41 @@ const ChatMessage = ({
         }
 
         if (profile?.username) {
-          console.log('Found username:', profile.username);
+          console.log('Found username:', profile.username, 'status:', profile.status);
           setSenderName(profile.username);
+          setSenderStatus(profile.status || 'offline');
         } else {
           console.log('No username found, using Unknown User');
           setSenderName('Unknown User');
         }
       } catch (error) {
-        console.error('Error in fetchSenderName:', error);
+        console.error('Error in fetchSenderInfo:', error);
         setSenderName('Unknown User');
       }
     };
 
-    fetchSenderName();
+    fetchSenderInfo();
+
+    // Subscribe to realtime status updates
+    const statusSubscription = supabase
+      .channel('profiles')
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'profiles',
+          filter: `id=eq.${message.sender}` 
+        }, 
+        (payload: any) => {
+          console.log('Profile status updated:', payload);
+          setSenderStatus(payload.new.status || 'offline');
+        }
+      )
+      .subscribe();
+
+    return () => {
+      statusSubscription.unsubscribe();
+    };
   }, [message.sender]);
 
   const getStatusColor = (status?: string) => {
@@ -82,7 +105,7 @@ const ChatMessage = ({
             {senderName[0].toUpperCase()}
           </div>
           <Circle 
-            className={`absolute bottom-0 right-0 w-3 h-3 ${getStatusColor(message.status)} fill-current`}
+            className={`absolute bottom-0 right-0 w-3 h-3 ${getStatusColor(senderStatus)} fill-current`}
           />
         </div>
         <div className="flex-1">

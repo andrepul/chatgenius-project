@@ -27,7 +27,6 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDMs, setActiveDMs] = useState<Set<string>>(new Set());
 
-  // Fetch users and active DMs on component mount
   useEffect(() => {
     const fetchUsersAndDMs = async () => {
       try {
@@ -78,6 +77,32 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
     };
 
     fetchUsersAndDMs();
+
+    // Subscribe to realtime status updates
+    const statusSubscription = supabase
+      .channel('profiles')
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'profiles' 
+        }, 
+        (payload: any) => {
+          console.log('Profile status updated:', payload);
+          setUsers(prevUsers => 
+            prevUsers.map(user => 
+              user.id === payload.new.id 
+                ? { ...user, status: payload.new.status }
+                : user
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      statusSubscription.unsubscribe();
+    };
   }, []);
 
   const toggleSection = (section: keyof typeof sectionsState) => {
