@@ -1,10 +1,17 @@
 import { Hash, ChevronDown, MessageSquare, Circle, User, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatSidebarProps {
   activeChannel: string;
   onChannelSelect: (channelName: string) => void;
   onDMSelect?: (userId: string) => void;
+}
+
+interface Profile {
+  id: string;
+  username: string;
+  status?: string;
 }
 
 const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebarProps) => {
@@ -13,6 +20,30 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
     dms: true,
     users: true
   });
+  const [users, setUsers] = useState<Profile[]>([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        console.log('Fetching users from profiles table...');
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, status');
+        
+        if (error) {
+          console.error('Error fetching users:', error);
+          return;
+        }
+
+        console.log('Fetched users:', data);
+        setUsers(data || []);
+      } catch (error) {
+        console.error('Error in fetchUsers:', error);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const toggleSection = (section: keyof typeof sectionsState) => {
     setSectionsState(prev => ({
@@ -44,8 +75,6 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
       status: "offline" 
     },
   ];
-
-  const users = dms; // For now, using the same data as DMs. In a real app, this would come from the profiles table
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -151,10 +180,10 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
                     <div className="relative">
                       <User size={18} />
                       <Circle 
-                        className={`absolute bottom-0 right-0 w-2 h-2 ${getStatusColor(user.status)} fill-current`}
+                        className={`absolute bottom-0 right-0 w-2 h-2 ${getStatusColor(user.status || 'offline')} fill-current`}
                       />
                     </div>
-                    <span>{user.name}</span>
+                    <span>{user.username}</span>
                   </button>
                 </li>
               ))}
