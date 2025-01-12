@@ -27,27 +27,57 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDMs, setActiveDMs] = useState<Set<string>>(new Set());
 
+  // Fetch users and active DMs on component mount
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchUsersAndDMs = async () => {
       try {
         console.log('Fetching users from profiles table...');
-        const { data, error } = await supabase
+        const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('id, username, status');
         
-        if (error) {
-          console.error('Error fetching users:', error);
+        if (profilesError) {
+          console.error('Error fetching users:', profilesError);
           return;
         }
 
-        console.log('Fetched users:', data);
-        setUsers(data || []);
+        console.log('Fetched users:', profilesData);
+        setUsers(profilesData || []);
+
+        // Get current user's ID
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        console.log('Fetching active DMs for user:', user.id);
+        const { data: messagesData, error: messagesError } = await supabase
+          .from('messages')
+          .select('sender_id, recipient_id')
+          .eq('is_dm', true)
+          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`);
+
+        if (messagesError) {
+          console.error('Error fetching DMs:', messagesError);
+          return;
+        }
+
+        console.log('Fetched DM messages:', messagesData);
+        const uniqueDMUsers = new Set<string>();
+        messagesData?.forEach(msg => {
+          if (msg.sender_id === user.id) {
+            uniqueDMUsers.add(msg.recipient_id);
+          } else {
+            uniqueDMUsers.add(msg.sender_id);
+          }
+        });
+
+        console.log('Setting active DMs:', uniqueDMUsers);
+        setActiveDMs(uniqueDMUsers);
       } catch (error) {
-        console.error('Error in fetchUsers:', error);
+        console.error('Error in fetchUsersAndDMs:', error);
       }
     };
 
-    fetchUsers();
+    fetchUsersAndDMs();
   }, []);
 
   const toggleSection = (section: keyof typeof sectionsState) => {
@@ -63,7 +93,7 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
     { id: 3, name: "introductions" },
   ];
 
-  const handleStartDM = (userId: string, username: string) => {
+  const handleStartDM = async (userId: string, username: string) => {
     console.log('Starting DM with user:', userId, username);
     setActiveDMs(prev => new Set(prev).add(userId));
     onDMSelect?.(userId);
