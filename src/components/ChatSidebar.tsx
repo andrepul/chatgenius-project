@@ -1,13 +1,28 @@
-import { Hash, ChevronDown, MessageSquare, Circle, User, ChevronRight, Plus } from "lucide-react";
+import { Hash, ChevronDown, MessageSquare, Circle, User, ChevronRight, Plus, Download, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
 
 interface ChatSidebarProps {
   activeChannel: string;
   onChannelSelect: (channelName: string) => void;
   onDMSelect?: (userId: string) => void;
+  currentUser?: string;
+  onFilesClick: () => void;
 }
 
 interface Profile {
@@ -16,16 +31,89 @@ interface Profile {
   status?: string;
 }
 
-const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebarProps) => {
+interface FileData {
+  id: string;
+  name: string;
+  storage_path: string;
+  type: string;
+  size: number;
+  uploaded_by: string;
+  created_at: string;
+}
+
+const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect, currentUser, onFilesClick }: ChatSidebarProps) => {
   const [sectionsState, setSectionsState] = useState({
     channels: true,
     dms: true,
-    users: true
+    users: true,
+    files: true
   });
   const [users, setUsers] = useState<Profile[]>([]);
   const [isNewDMOpen, setIsNewDMOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDMs, setActiveDMs] = useState<Set<string>>(new Set());
+  const [files, setFiles] = useState<FileData[]>([]);
+  const { toast } = useToast();
+
+  const fetchFiles = async () => {
+    try {
+      const { data: filesData, error } = await supabase
+        .from('files')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setFiles(filesData || []);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load files",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteFile = async (fileId: string, fileUrl: string) => {
+    try {
+      const { error } = await supabase
+        .from('files')
+        .delete()
+        .match({ id: fileId });
+
+      if (error) throw error;
+
+      setFiles(files.filter(file => file.id !== fileId));
+      toast({
+        title: "File deleted",
+        description: "The file has been successfully deleted",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchFiles();
+    
+    // Set up real-time subscription
+    const filesSubscription = supabase
+      .channel('files')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'files' }, () => {
+        fetchFiles();
+      })
+      .subscribe();
+
+    return () => {
+      filesSubscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     const fetchUsersAndDMs = async () => {
@@ -143,7 +231,7 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
   );
 
   return (
-    <div className="w-64 bg-secondary h-screen flex flex-col">
+    <div className="w-64 bg-gray-50 border-r">
       <div className="p-4 border-b">
         <button className="w-full text-left font-semibold flex items-center justify-between text-secondary-foreground hover:bg-chat-hover rounded p-2">
           <span>ChatGenius Community</span>
@@ -153,11 +241,14 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
       
       <div className="flex-1 overflow-y-auto">
         <div className="p-4">
-          <button 
-            onClick={() => toggleSection('channels')}
-            className="w-full text-left flex items-center justify-between text-sm font-semibold text-muted-foreground mb-2 hover:text-secondary-foreground"
+          <button
+            onClick={() => setSectionsState(prev => ({ ...prev, channels: !prev.channels }))}
+            className="flex items-center justify-between w-full text-sm font-semibold text-gray-600"
           >
-            <span>Channels</span>
+            <div className="flex items-center space-x-2">
+              <Hash size={18} />
+              <span>Channels</span>
+            </div>
             {sectionsState.channels ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
           </button>
           {sectionsState.channels && (
@@ -254,6 +345,77 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect }: ChatSidebar
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+
+        <div className="mt-4">
+          <button
+            onClick={() => {
+              setSectionsState(prev => ({ ...prev, files: !prev.files }));
+              if (!sectionsState.files) {
+                onFilesClick();
+              }
+            }}
+            className="flex items-center justify-between w-full text-sm font-semibold text-gray-600"
+          >
+            <div className="flex items-center space-x-2">
+              <Download size={18} />
+              <span>Files</span>
+            </div>
+            {sectionsState.files ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </button>
+
+          {sectionsState.files && (
+            <div className="mt-1 space-y-1">
+              {files.length === 0 ? (
+                <p className="px-4 py-2 text-sm text-gray-500">No files shared yet</p>
+              ) : (
+                files.map((file) => (
+                  <div key={file.id} className="group relative">
+                    <div className="flex items-center justify-between px-4 py-1 text-sm text-gray-600 hover:bg-gray-100">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const { data: { signedUrl }, error } = await supabase
+                              .storage
+                              .from('files')
+                              .createSignedUrl(file.storage_path, 3600);
+
+                            if (error) throw error;
+                            window.open(signedUrl, '_blank');
+                          } catch (error) {
+                            console.error('Error accessing file:', error);
+                            toast({
+                              title: "Error",
+                              description: "Failed to access file",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        className="flex-1 truncate hover:text-blue-600"
+                      >
+                        {file.name}
+                      </button>
+                      {file.uploaded_by === currentUser && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (confirm('Are you sure you want to delete this file?')) {
+                              handleDeleteFile(file.id, file.url);
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-600 transition-opacity"
+                          title="Delete file"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -13,6 +13,7 @@ function Index() {
   const [activeChannel, setActiveChannel] = useState("general");
   const [activeDM, setActiveDM] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [showFiles, setShowFiles] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -55,18 +56,26 @@ function Index() {
     };
   }, []);
 
-  const fetchMessages = async () => {
-    console.log('Fetching messages...');
+  const fetchMessages = async (channel?: string) => {
+    console.log('Fetching messages for channel:', channel || activeChannel);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('messages')
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching messages:', error);
-        throw error;
+      // Filter messages by channel
+      if (channel) {
+        query = query.eq('channel', channel);
+      } else if (activeDM) {
+        query = query.eq('channel', `dm-${activeDM}`);
+      } else if (activeChannel) {
+        query = query.eq('channel', activeChannel);
       }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
 
       console.log('Fetched messages:', data);
       const convertedMessages: Message[] = data?.map(msg => ({
@@ -97,29 +106,71 @@ function Index() {
   const handleSendMessage = async (content: string, file?: File) => {
     if (!session) return;
 
-    let attachment;
-    if (file) {
-      const url = URL.createObjectURL(file);
-      attachment = {
-        name: file.name,
-        url,
-        type: file.type
-      };
-    }
-
-    const currentChannel = activeDM ? `dm-${activeDM}` : activeChannel;
-    console.log('Sending message to channel:', currentChannel);
-
-    const messageData = {
-      content,
-      sender_id: session.id,
-      channel: currentChannel,
-      is_dm: !!activeDM,
-      recipient_id: activeDM || null,
-      reactions: {},
-    };
-
     try {
+      let fileData;
+      if (file) {
+        // Create a unique filename
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `uploads/${fileName}`;
+
+        // Upload to Supabase storage with metadata
+        const { error: uploadError } = await supabase
+          .storage
+          .from('files')
+          .upload(filePath, file, {
+            metadata: {
+              user_id: session.id,
+              contentType: file.type,
+              filename: file.name
+            }
+          });
+
+        if (uploadError) throw uploadError;
+
+        // Get signed URL
+        const { data: { signedUrl }, error: signedUrlError } = await supabase
+          .storage
+          .from('files')
+          .createSignedUrl(filePath, 3600);
+
+        if (signedUrlError) throw signedUrlError;
+
+        // Save file metadata to database
+        const { data, error: fileError } = await supabase
+          .from('files')
+          .insert([{
+            name: file.name,
+            storage_path: filePath,
+            type: file.type,
+            size: file.size,
+            uploaded_by: session.id,
+            channel: activeDM ? null : activeChannel,
+            is_dm: !!activeDM,
+            recipient_id: activeDM || null,
+            url: signedUrl
+          }])
+          .select()
+          .single();
+
+        if (fileError) throw fileError;
+        fileData = data;
+
+        // Add file reference to message content
+        content = `${content} [File: ${file.name}](${signedUrl})`;
+      }
+
+      const currentChannel = activeDM ? `dm-${activeDM}` : activeChannel;
+      const messageData = {
+        content,
+        sender_id: session.id,
+        channel: currentChannel,
+        is_dm: !!activeDM,
+        recipient_id: activeDM || null,
+        reactions: {},
+        ...(fileData && { file_id: fileData.id })  // Only include file_id if we have a file
+      };
+
       console.log('Sending message with data:', messageData);
       const { data, error } = await supabase
         .from('messages')
@@ -141,7 +192,6 @@ function Index() {
         recipientId: data.recipient_id,
         replyCount: data.reply_count || 0,
         reactions: data.reactions as Record<string, string[]>,
-        attachment,
         parentId: data.parent_id
       };
 
@@ -159,14 +209,22 @@ function Index() {
   const handleChannelSelect = (channelName: string) => {
     console.log('Channel selected:', channelName);
     setActiveChannel(channelName);
+    setShowFiles(false);
     if (!channelName.startsWith('dm-')) {
       setActiveDM(null);
     }
+    fetchMessages(channelName);
   };
 
   const handleDMSelect = (userId: string) => {
     console.log('DM selected:', userId);
     setActiveDM(userId);
+    setShowFiles(false);
+    fetchMessages(`dm-${userId}`);
+  };
+
+  const handleFilesClick = () => {
+    setShowFiles(true);
   };
 
   if (loading) {
@@ -195,6 +253,8 @@ function Index() {
       onSendMessage={handleSendMessage}
       onChannelSelect={handleChannelSelect}
       onDMSelect={handleDMSelect}
+      onFilesClick={handleFilesClick}
+      showFiles={showFiles}
     />
   );
 }

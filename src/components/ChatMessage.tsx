@@ -100,7 +100,7 @@ const ChatMessage = ({
   return (
     <div className="py-2 px-4 hover:bg-chat-hover">
       <div className="flex items-start space-x-3">
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
             {senderName[0].toUpperCase()}
           </div>
@@ -108,8 +108,8 @@ const ChatMessage = ({
             className={`absolute bottom-0 right-0 w-3 h-3 ${getStatusColor(senderStatus)} fill-current`}
           />
         </div>
-        <div className="flex-1">
-          <div className="flex items-center space-x-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center space-x-2 mb-1">
             <span className="font-medium">{senderName}</span>
             <span className="text-xs text-muted-foreground">
               {new Intl.DateTimeFormat([], {
@@ -118,7 +118,9 @@ const ChatMessage = ({
               }).format(message.timestamp)}
             </span>
           </div>
-          <p className="text-secondary-foreground">{message.content}</p>
+          <div className="break-words whitespace-pre-wrap overflow-hidden">
+            {message.content}
+          </div>
 
           {message.attachment && (
             <div className="mt-2">

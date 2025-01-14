@@ -8,15 +8,18 @@ import { Message } from "@/types/message";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import FilesView from "./FilesView";
 
 interface ChatLayoutProps {
   session: User;
   messages: Message[];
   activeChannel: string;
-  activeDM: string | null;
-  onSendMessage: (content: string, file?: File) => Promise<void>;
+  activeDM?: string | null;
+  onSendMessage: (content: string, file?: File) => void;
   onChannelSelect: (channelName: string) => void;
-  onDMSelect: (userId: string) => void;
+  onDMSelect?: (userId: string) => void;
+  onFilesClick: () => void;
+  showFiles: boolean;
 }
 
 interface DMUser {
@@ -32,10 +35,14 @@ const ChatLayout = ({
   onSendMessage,
   onChannelSelect,
   onDMSelect,
+  onFilesClick,
+  showFiles,
 }: ChatLayoutProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
   const [activeThread, setActiveThread] = useState<Message | null>(null);
+  const [showThread, setShowThread] = useState(false);
+  const [threadMessage, setThreadMessage] = useState<Message | null>(null);
   const { toast } = useToast();
 
   const dmUsers: Record<string, DMUser> = {
@@ -100,6 +107,11 @@ const ChatLayout = ({
     }
   };
 
+  const handleSendMessage = async (content: string, file?: File) => {
+    if (!session) return;
+    onSendMessage(content, file);  // Just pass to parent handler
+  };
+
   const filteredMessages = messages.filter((message) => {
     const matchesSearch = message.content.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesChannel = searchScope === "global" || 
@@ -118,40 +130,37 @@ const ChatLayout = ({
   };
 
   return (
-    <div className="flex h-screen bg-white">
-      <ChatSidebar 
-        activeChannel={activeChannel} 
+    <div className="flex h-screen">
+      <ChatSidebar
+        activeChannel={activeChannel}
         onChannelSelect={onChannelSelect}
         onDMSelect={onDMSelect}
+        currentUser={session.id}
+        onFilesClick={onFilesClick}
       />
-      <div className="flex-1 flex flex-col">
-        <ChatHeader 
-          displayName={getDisplayName()}
-          searchQuery={searchQuery}
-          searchScope={searchScope}
-          onSearchQueryChange={setSearchQuery}
-          onSearchScopeChange={setSearchScope}
-        />
-
-        <MessageList
-          messages={filteredMessages}
-          session={session}
-          onThreadClick={handleThreadClick}
-        />
-
-        <ChatInput 
-          onSendMessage={onSendMessage} 
-          activeChannel={activeDM ? getDisplayName() : activeChannel}
-          placeholder={activeDM ? `Message ${getDisplayName()}` : undefined}
-        />
+      <div className="flex-1 flex flex-col min-w-0">
+        {showFiles ? (
+          <FilesView currentUser={session.id} />
+        ) : (
+          <>
+            <ChatHeader
+              channel={activeChannel}
+              dmUser={activeDM ? dmUsers[activeDM] : undefined}
+            />
+            <MessageList
+              messages={messages}
+              currentUser={session.id}
+              onThreadSelect={handleThreadClick}
+            />
+            <ChatInput onSendMessage={onSendMessage} />
+          </>
+        )}
       </div>
-
-      {activeThread && (
+      {showThread && (
         <ThreadView
-          parentMessage={activeThread}
-          messages={messages}
-          onClose={handleCloseThread}
-          onSendReply={handleSendReply}
+          message={threadMessage}
+          onClose={() => setShowThread(false)}
+          currentUser={session.id}
         />
       )}
     </div>

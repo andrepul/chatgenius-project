@@ -1,21 +1,20 @@
 import { Message } from "@/types/message";
 import ChatMessage from "./ChatMessage";
-import { User } from "@supabase/supabase-js";
 
 interface MessageListProps {
   messages: Message[];
-  session: User;
   onThreadClick: (message: Message) => void;
+  currentUser?: string;
 }
 
-const MessageList = ({ messages, session, onThreadClick }: MessageListProps) => {
+const MessageList = ({ messages, onThreadClick, currentUser }: MessageListProps) => {
   return (
     <div className="flex-1 overflow-y-auto">
       {messages.map((message) => (
         <ChatMessage
           key={message.id}
           message={message}
-          currentUser={session.id}
+          currentUser={currentUser}
           onThreadClick={onThreadClick}
           showThread={true}
         />
