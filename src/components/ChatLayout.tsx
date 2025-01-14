@@ -42,7 +42,6 @@ const ChatLayout = ({
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
   const [activeThread, setActiveThread] = useState<Message | null>(null);
   const [showThread, setShowThread] = useState(false);
-  const [threadMessage, setThreadMessage] = useState<Message | null>(null);
   const { toast } = useToast();
 
   const dmUsers: Record<string, DMUser> = {
@@ -109,7 +108,7 @@ const ChatLayout = ({
 
   const handleSendMessage = async (content: string, file?: File) => {
     if (!session) return;
-    onSendMessage(content, file);  // Just pass to parent handler
+    onSendMessage(content, file);
   };
 
   const filteredMessages = messages.filter((message) => {
@@ -144,23 +143,30 @@ const ChatLayout = ({
         ) : (
           <>
             <ChatHeader
-              channel={activeChannel}
-              dmUser={activeDM ? dmUsers[activeDM] : undefined}
+              displayName={getDisplayName()}
+              searchQuery={searchQuery}
+              searchScope={searchScope}
+              onSearchQueryChange={setSearchQuery}
+              onSearchScopeChange={setSearchScope}
             />
             <MessageList
-              messages={messages}
+              messages={filteredMessages}
               currentUser={session.id}
-              onThreadSelect={handleThreadClick}
+              onThreadClick={handleThreadClick}
             />
-            <ChatInput onSendMessage={onSendMessage} />
+            <ChatInput 
+              onSendMessage={handleSendMessage}
+              activeChannel={activeChannel}
+            />
           </>
         )}
       </div>
-      {showThread && (
+      {showThread && activeThread && (
         <ThreadView
-          message={threadMessage}
-          onClose={() => setShowThread(false)}
-          currentUser={session.id}
+          parentMessage={activeThread}
+          messages={messages}
+          onClose={handleCloseThread}
+          onSendReply={handleSendReply}
         />
       )}
     </div>

@@ -74,7 +74,7 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect, currentUser, 
     }
   };
 
-  const handleDeleteFile = async (fileId: string, fileUrl: string) => {
+  const handleDeleteFile = async (fileId: string, storagePath: string) => {
     try {
       const { error } = await supabase
         .from('files')
@@ -402,7 +402,7 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect, currentUser, 
                             e.preventDefault();
                             e.stopPropagation();
                             if (confirm('Are you sure you want to delete this file?')) {
-                              handleDeleteFile(file.id, file.url);
+                              handleDeleteFile(file.id, file.storage_path);
                             }
                           }}
                           className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-600 transition-opacity"

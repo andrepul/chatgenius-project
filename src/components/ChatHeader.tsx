@@ -6,12 +6,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface DMUser {
+  id: string;
+  name: string;
+}
+
 interface ChatHeaderProps {
   displayName: string;
   searchQuery: string;
   searchScope: "channel" | "global";
   onSearchQueryChange: (query: string) => void;
   onSearchScopeChange: (scope: "channel" | "global") => void;
+  channel?: string;
+  dmUser?: DMUser;
 }
 
 const ChatHeader = ({
