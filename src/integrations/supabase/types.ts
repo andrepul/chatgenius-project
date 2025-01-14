@@ -9,11 +9,54 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      files: {
+        Row: {
+          channel: string | null
+          created_at: string | null
+          id: string
+          is_dm: boolean | null
+          name: string
+          recipient_id: string | null
+          size: number
+          storage_path: string
+          type: string
+          uploaded_by: string | null
+          url: string | null
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string | null
+          id?: string
+          is_dm?: boolean | null
+          name: string
+          recipient_id?: string | null
+          size: number
+          storage_path: string
+          type: string
+          uploaded_by?: string | null
+          url?: string | null
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string | null
+          id?: string
+          is_dm?: boolean | null
+          name?: string
+          recipient_id?: string | null
+          size?: number
+          storage_path?: string
+          type?: string
+          uploaded_by?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           channel: string
           content: string
           created_at: string
+          file_id: string | null
           id: number
           is_dm: boolean | null
           parent_id: number | null
@@ -26,6 +69,7 @@ export type Database = {
           channel?: string
           content: string
           created_at?: string
+          file_id?: string | null
           id?: number
           is_dm?: boolean | null
           parent_id?: number | null
@@ -38,6 +82,7 @@ export type Database = {
           channel?: string
           content?: string
           created_at?: string
+          file_id?: string | null
           id?: number
           is_dm?: boolean | null
           parent_id?: number | null
@@ -47,6 +92,13 @@ export type Database = {
           sender_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_parent_id_fkey"
             columns: ["parent_id"]

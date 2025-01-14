@@ -90,12 +90,22 @@ const ChatMessage = ({
     }
   };
 
-  const getFileIcon = (type: string) => {
-    if (type.startsWith("image/")) {
-      return null; // We'll show the actual image
+  // Extract file name from content if it contains a file link
+  const extractFileInfo = (content: string) => {
+    const fileMatch = content.match(/\[File: (.*?)\]/);
+    if (fileMatch) {
+      return fileMatch[1];
     }
-    return <Download className="w-4 h-4" />;
+    return null;
   };
+
+  // Clean message content by removing file markdown
+  const cleanContent = (content: string) => {
+    return content.replace(/\[File:.*?\]\(.*?\)/, '').trim();
+  };
+
+  const fileName = extractFileInfo(message.content);
+  const cleanedContent = cleanContent(message.content);
   
   return (
     <div className="py-2 px-4 hover:bg-chat-hover">
@@ -118,28 +128,25 @@ const ChatMessage = ({
               }).format(message.timestamp)}
             </span>
           </div>
-          <div className="break-words whitespace-pre-wrap overflow-hidden">
-            {message.content}
-          </div>
+          
+          {/* Message content */}
+          {cleanedContent && (
+            <div className="break-words whitespace-pre-wrap overflow-hidden mb-2">
+              {cleanedContent}
+            </div>
+          )}
 
-          {message.attachment && (
-            <div className="mt-2">
-              {message.attachment.type.startsWith("image/") ? (
-                <img
-                  src={message.attachment.url}
-                  alt={message.attachment.name}
-                  className="max-w-sm rounded-lg border"
-                />
-              ) : (
-                <a
-                  href={message.attachment.url}
-                  download={message.attachment.name}
-                  className="inline-flex items-center space-x-2 px-3 py-2 bg-accent rounded-lg text-sm hover:bg-accent/80"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>{message.attachment.name}</span>
-                </a>
-              )}
+          {/* File attachment */}
+          {fileName && (
+            <div className="mt-2 flex items-center space-x-2 p-2 bg-accent rounded-lg w-fit">
+              <Download className="w-4 h-4 text-muted-foreground" />
+              <a
+                href={message.attachment?.url}
+                download
+                className="text-sm hover:text-primary transition-colors"
+              >
+                {fileName}
+              </a>
             </div>
           )}
 
