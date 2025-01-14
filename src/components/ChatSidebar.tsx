@@ -231,8 +231,8 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect, currentUser, 
   );
 
   return (
-    <div className="w-64 bg-gray-50 border-r">
-      <div className="p-4 border-b">
+    <div className="w-64 bg-gray-50 border-r flex flex-col h-screen">
+      <div className="p-4 border-b flex-shrink-0">
         <button className="w-full text-left font-semibold flex items-center justify-between text-secondary-foreground hover:bg-chat-hover rounded p-2">
           <span>ChatGenius Community</span>
           <ChevronDown size={18} />
@@ -348,7 +348,7 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect, currentUser, 
           )}
         </div>
 
-        <div className="mt-4">
+        <div className="p-4">
           <button
             onClick={() => {
               setSectionsState(prev => ({ ...prev, files: !prev.files }));
