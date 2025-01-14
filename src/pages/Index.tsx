@@ -6,6 +6,10 @@ import { Message } from "@/types/message";
 import { User } from "@supabase/supabase-js";
 import ChatLayout from "@/components/ChatLayout";
 
+const getDMChannelName = (userId1: string, userId2: string) => {
+  return `dm-${[userId1, userId2].sort().join('-')}`;
+};
+
 function Index() {
   const [session, setSession] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,19 +60,59 @@ function Index() {
     };
   }, []);
 
+  useEffect(() => {
+    // Subscribe to messages in the current channel/DM
+    const channel = supabase
+      .channel('messages')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: activeDM 
+            ? `channel=eq.${getDMChannelName(session?.id, activeDM)}`
+            : `channel=eq.${activeChannel}`
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          if (payload.eventType === 'INSERT') {
+            const newMessage = payload.new;
+            setMessages(prev => [...prev, {
+              id: newMessage.id,
+              content: newMessage.content,
+              sender: newMessage.sender_id,
+              senderId: newMessage.sender_id,
+              timestamp: new Date(newMessage.created_at),
+              channel: newMessage.channel,
+              isDM: newMessage.is_dm,
+              recipientId: newMessage.recipient_id,
+              replyCount: newMessage.reply_count || 0,
+              reactions: newMessage.reactions || {},
+              parentId: newMessage.parent_id,
+            }]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [activeChannel, activeDM, session?.id]);
+
   const fetchMessages = async (channel?: string) => {
-    console.log('Fetching messages for channel:', channel || activeChannel);
     try {
       let query = supabase
         .from('messages')
         .select('*')
         .order('created_at', { ascending: true });
 
-      // Filter messages by channel
       if (channel) {
         query = query.eq('channel', channel);
       } else if (activeDM) {
-        query = query.eq('channel', `dm-${activeDM}`);
+        const dmChannel = `dm-${[session.id, activeDM].sort().join('-')}`;
+        query = query.eq('channel', dmChannel);
       } else if (activeChannel) {
         query = query.eq('channel', activeChannel);
       }
@@ -94,7 +138,7 @@ function Index() {
 
       setMessages(convertedMessages);
     } catch (error) {
-      console.error('Error in fetchMessages:', error);
+      console.error('Error fetching messages:', error);
       toast({
         title: "Error",
         description: "Failed to load messages",
@@ -160,7 +204,10 @@ function Index() {
         content = `${content} [File: ${file.name}](${signedUrl})`;
       }
 
-      const currentChannel = activeDM ? `dm-${activeDM}` : activeChannel;
+      const currentChannel = activeDM 
+        ? getDMChannelName(session.id, activeDM)
+        : activeChannel;
+
       const messageData = {
         content,
         sender_id: session.id,
@@ -168,7 +215,7 @@ function Index() {
         is_dm: !!activeDM,
         recipient_id: activeDM || null,
         reactions: {},
-        ...(fileData && { file_id: fileData.id })  // Only include file_id if we have a file
+        ...(fileData && { file_id: fileData.id })
       };
 
       console.log('Sending message with data:', messageData);
