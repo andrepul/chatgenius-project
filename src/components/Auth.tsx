@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
-import { AuthError, AuthApiError } from "@supabase/supabase-js";
+import { AuthError, AuthApiError, PostgrestError } from "@supabase/supabase-js";
 
 export default function Auth() {
   const [loading, setLoading] = useState(false);
@@ -19,8 +19,8 @@ export default function Auth() {
   const [error, setError] = useState("");
   const { toast } = useToast();
 
-  const getErrorMessage = (error: AuthError) => {
-    console.error('Auth error:', error);
+  const getErrorMessage = (error: AuthError | PostgrestError) => {
+    console.error('Detailed auth error:', error);
     
     if (error instanceof AuthApiError) {
       switch (error.status) {
@@ -31,16 +31,31 @@ export default function Auth() {
           if (error.message.includes("Email")) {
             return "Please enter a valid email address";
           }
-          return error.message;
+          return `Authentication error: ${error.message}`;
         case 422:
           return "Invalid email or password format";
         case 401:
           return "Invalid credentials";
+        case 429:
+          return "Too many attempts. Please try again later.";
         default:
-          return error.message;
+          return `Authentication error (${error.status}): ${error.message}`;
       }
     }
-    return "An unexpected error occurred. Please try again.";
+    
+    // Handle PostgrestError for profile creation failures
+    if ('code' in error) {
+      switch (error.code) {
+        case '23505': // unique_violation
+          return "This username is already taken";
+        case '23503': // foreign_key_violation
+          return "Failed to create user profile";
+        default:
+          return `Database error (${error.code}): ${error.message}`;
+      }
+    }
+    
+    return `Unexpected error: ${error.message}`;
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -66,7 +81,7 @@ export default function Auth() {
       }
 
       if (isSignUp) {
-        console.log('Attempting signup with:', { email, username });
+        console.log('Starting signup process for:', { email, username });
         const { data: authData, error: signUpError } = await supabase.auth.signUp({ 
           email, 
           password,
@@ -74,14 +89,18 @@ export default function Auth() {
             data: { 
               username: username || email,
               timestamp: new Date().toISOString(),
-            }
+            },
+            emailRedirectTo: window.location.origin
           }
         });
         
-        if (signUpError) throw signUpError;
-        console.log('Signup successful:', authData);
+        if (signUpError) {
+          console.error('Signup error:', signUpError);
+          throw signUpError;
+        }
+        
+        console.log('Signup response:', authData);
 
-        // Create profile entry
         if (authData.user) {
           console.log('Creating profile for user:', authData.user.id);
           const { error: profileError } = await supabase
@@ -96,21 +115,29 @@ export default function Auth() {
 
           if (profileError) {
             console.error('Profile creation error:', profileError);
-            throw new Error('Failed to create user profile');
+            throw profileError;
           }
         }
 
         toast({
-          title: "Check your email to confirm signup!",
+          title: "Account created successfully!",
+          description: "You can now sign in with your credentials.",
           duration: 3000,
         });
+        
+        // Switch to sign in mode after successful registration
+        setIsSignUp(false);
       } else {
         console.log('Attempting signin with email:', email);
-        const { error } = await supabase.auth.signInWithPassword({ 
+        const { error: signInError } = await supabase.auth.signInWithPassword({ 
           email, 
           password 
         });
-        if (error) throw error;
+        
+        if (signInError) {
+          console.error('Signin error:', signInError);
+          throw signInError;
+        }
 
         if (rememberMe) {
           localStorage.setItem('rememberAuth', 'true');
@@ -124,8 +151,8 @@ export default function Auth() {
         });
       }
     } catch (error) {
-      console.error('Authentication error:', error);
-      setError(getErrorMessage(error as AuthError));
+      console.error('Authentication process error:', error);
+      setError(getErrorMessage(error as AuthError | PostgrestError));
     } finally {
       setLoading(false);
     }
@@ -255,4 +282,4 @@ export default function Auth() {
       </div>
     </div>
   );
-}
+};
