@@ -104,7 +104,32 @@ const ChatMessage = ({
     return content.replace(/\[File:.*?\]\(.*?\)/, '').trim();
   };
 
+  // Extract URL from content
+  const extractFileUrl = (content: string) => {
+    const urlMatch = content.match(/\(([^)]+)\)/);
+    return urlMatch ? urlMatch[1] : null;
+  };
+
+  const handleDownload = async (fileName: string, fileUrl: string) => {
+    try {
+      console.log('Downloading file:', fileName, 'from URL:', fileUrl);
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    }
+  };
+
   const fileName = extractFileInfo(message.content);
+  const fileUrl = extractFileUrl(message.content);
   const cleanedContent = cleanContent(message.content);
   
   return (
@@ -137,16 +162,15 @@ const ChatMessage = ({
           )}
 
           {/* File attachment */}
-          {fileName && (
-            <div className="mt-2 flex items-center space-x-2 p-2 bg-accent rounded-lg w-fit">
+          {fileName && fileUrl && (
+            <div 
+              className="mt-2 flex items-center space-x-2 p-2 bg-accent rounded-lg w-fit cursor-pointer hover:bg-accent/80 transition-colors"
+              onClick={() => handleDownload(fileName, fileUrl)}
+            >
               <Download className="w-4 h-4 text-muted-foreground" />
-              <a
-                href={message.attachment?.url}
-                download
-                className="text-sm hover:text-primary transition-colors"
-              >
+              <span className="text-sm hover:text-primary transition-colors">
                 {fileName}
-              </a>
+              </span>
             </div>
           )}
 
