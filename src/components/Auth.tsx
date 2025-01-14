@@ -19,7 +19,7 @@ export default function Auth() {
   const [error, setError] = useState("");
   const { toast } = useToast();
 
-  const getErrorMessage = (error: AuthError | PostgrestError) => {
+  const getErrorMessage = (error: AuthError | PostgrestError | Error) => {
     console.error('Detailed auth error:', error);
     
     if (error instanceof AuthApiError) {
@@ -55,7 +55,8 @@ export default function Auth() {
       }
     }
     
-    return `Unexpected error: ${error.message}`;
+    // Handle generic Error objects
+    return error.message || "An unexpected error occurred";
   };
 
   const handleAuth = async (e: React.FormEvent) => {
