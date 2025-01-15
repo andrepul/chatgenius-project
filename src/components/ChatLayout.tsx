@@ -75,11 +75,13 @@ const ChatLayout = ({
   const handleThreadClick = (message: Message) => {
     console.log('Opening thread for message:', message);
     setActiveThread(message);
+    setShowThread(true);  // Make sure to set showThread to true
   };
 
   const handleCloseThread = () => {
     console.log('Closing thread');
     setActiveThread(null);
+    setShowThread(false);  // Make sure to set showThread to false when closing
   };
 
   const handleSendReply = async (content: string, parentId: number, attachment?: File) => {
