@@ -15,7 +15,6 @@ const ChatInput = ({ onSendMessage, activeChannel, placeholder }: ChatInputProps
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() || selectedFile) {
-      console.log('Submitting message with file:', selectedFile?.name);
       onSendMessage(message, selectedFile || undefined);
       setMessage("");
       setSelectedFile(null);
@@ -28,7 +27,6 @@ const ChatInput = ({ onSendMessage, activeChannel, placeholder }: ChatInputProps
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      console.log('File selected:', file.name);
       setSelectedFile(file);
     }
   };

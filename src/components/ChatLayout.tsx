@@ -45,6 +45,7 @@ const ChatLayout = ({
   const [dmUsers, setDmUsers] = useState<Record<string, DMUser>>({});
   const { toast } = useToast();
 
+  // Fetch DM user information
   useEffect(() => {
     const fetchDMUsers = async () => {
       try {
@@ -74,13 +75,13 @@ const ChatLayout = ({
   const handleThreadClick = (message: Message) => {
     console.log('Opening thread for message:', message);
     setActiveThread(message);
-    setShowThread(true);
+    setShowThread(true);  // Make sure to set showThread to true
   };
 
   const handleCloseThread = () => {
     console.log('Closing thread');
     setActiveThread(null);
-    setShowThread(false);
+    setShowThread(false);  // Make sure to set showThread to false when closing
   };
 
   const handleSendReply = async (content: string, parentId: number, attachment?: File) => {
@@ -131,7 +132,6 @@ const ChatLayout = ({
 
   const handleSendMessage = async (content: string, file?: File) => {
     if (!session) return;
-    console.log('Handling send message with file:', file?.name);
     onSendMessage(content, file);
   };
 

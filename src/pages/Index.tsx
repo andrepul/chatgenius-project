@@ -88,7 +88,6 @@ function Index() {
                 replyCount: msg.reply_count || 0,
                 reactions: msg.reactions || {},
                 parentId: msg.parent_id,
-                fileId: msg.file_id || null,
               },
             ]);
           }
@@ -133,7 +132,6 @@ function Index() {
         replyCount: msg.reply_count || 0,
         reactions: (msg.reactions as Record<string, string[]>) || {},
         parentId: msg.parent_id,
-        fileId: msg.file_id || null,
       }));
 
       setMessages(convertedMessages);
@@ -155,52 +153,6 @@ function Index() {
         ? getDMChannelName(session.id, activeDM)
         : activeChannel;
 
-      let fileId = null;
-      
-      // Handle file upload if present
-      if (file) {
-        console.log('Starting file upload process for:', file.name);
-        
-        // Upload file to Supabase Storage
-        const fileExt = file.name.split('.').pop();
-        const filePath = `${crypto.randomUUID()}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('files')
-          .upload(filePath, file);
-
-        if (uploadError) {
-          console.error('File upload error:', uploadError);
-          throw uploadError;
-        }
-
-        console.log('File uploaded successfully:', uploadData);
-
-        // Create file record in the files table
-        const { data: fileData, error: fileError } = await supabase
-          .from('files')
-          .insert([{
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            storage_path: filePath,
-            uploaded_by: session.id,
-            channel: currentChannel,
-            is_dm: !!activeDM,
-            recipient_id: activeDM || null
-          }])
-          .select()
-          .single();
-
-        if (fileError) {
-          console.error('File record creation error:', fileError);
-          throw fileError;
-        }
-
-        console.log('File record created:', fileData);
-        fileId = fileData.id;
-      }
-
       const messageData = {
         content,
         sender_id: session.id,
@@ -208,7 +160,6 @@ function Index() {
         is_dm: !!activeDM,
         recipient_id: activeDM || null,
         reactions: {},
-        file_id: fileId
       };
 
       console.log("Sending message with data:", messageData);
@@ -221,6 +172,7 @@ function Index() {
       if (error) throw error;
 
       console.log("Message sent successfully:", data);
+      // Removed the immediate state update since the subscription will handle it
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
