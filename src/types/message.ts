@@ -16,4 +16,5 @@ export interface Message {
     type: string;
   };
   parentId?: number;
+  fileId?: string;
 }
