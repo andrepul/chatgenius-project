@@ -172,6 +172,10 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect, currentUser, 
     };
   }, []);
 
+  useEffect(() => {
+    console.log("ChatSidebar: currentUser is", currentUser);
+  }, [currentUser]);
+
   return (
     <div className="w-64 bg-gray-50 border-r flex flex-col h-screen">
       <SidebarHeader />
@@ -185,6 +189,7 @@ const ChatSidebar = ({ activeChannel, onChannelSelect, onDMSelect, currentUser, 
           onChannelSelect={onChannelSelect}
           onDMSelect={onDMSelect}
           users={users}
+          currentUser={currentUser ?? ""}
           activeDMs={activeDMs}
         />
         <UserList users={users} />

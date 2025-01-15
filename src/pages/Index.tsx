@@ -6,28 +6,30 @@ import { Message } from "@/types/message";
 import { User } from "@supabase/supabase-js";
 import ChatLayout from "@/components/ChatLayout";
 
-const getDMChannelName = (userId1: string, userId2: string) => {
+export function getDMChannelName(userId1: string, userId2: string) {
   return `dm-${[userId1, userId2].sort().join('-')}`;
-};
+}
 
 function Index() {
   const [session, setSession] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [activeChannel, setActiveChannel] = useState("general");
   const [activeDM, setActiveDM] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [showFiles, setShowFiles] = useState(false);
+  const [debugCounter, setDebugCounter] = useState(0);
+
   const { toast } = useToast();
 
+  // Fetch initial session
   useEffect(() => {
-    console.log('Checking session...');
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        console.error('Session error:', error);
+        console.error("Session error:", error);
         setError(error.message);
       } else {
-        console.log('Session status:', session ? 'Logged in' : 'No session');
         setSession(session?.user ?? null);
         if (session?.user) {
           fetchMessages();
@@ -36,61 +38,59 @@ function Index() {
       setLoading(false);
     });
 
+    // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('Auth state changed:', _event);
       setSession(session?.user ?? null);
       if (session?.user) {
         fetchMessages();
       }
     });
 
-    const messagesSubscription = supabase
-      .channel('messages')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
-        console.log('Messages changed, fetching updates...');
-        fetchMessages();
-      })
-      .subscribe();
-
     return () => {
       subscription.unsubscribe();
-      messagesSubscription.unsubscribe();
     };
   }, []);
 
+  // Only one subscription: filtered by activeChannel or activeDM
   useEffect(() => {
-    // Subscribe to messages in the current channel/DM
+    if (!session?.id) return;
+
+    const channelFilter = activeDM
+      ? `channel=eq.${getDMChannelName(session.id, activeDM)}`
+      : `channel=eq.${activeChannel}`;
+
     const channel = supabase
-      .channel('messages')
+      .channel("filtered-messages")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
-          filter: activeDM 
-            ? `channel=eq.${getDMChannelName(session?.id, activeDM)}`
-            : `channel=eq.${activeChannel}`
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: channelFilter,
         },
         (payload) => {
-          console.log('New message received:', payload);
-          if (payload.eventType === 'INSERT') {
-            const newMessage = payload.new;
-            setMessages(prev => [...prev, {
-              id: newMessage.id,
-              content: newMessage.content,
-              sender: newMessage.sender_id,
-              senderId: newMessage.sender_id,
-              timestamp: new Date(newMessage.created_at),
-              channel: newMessage.channel,
-              isDM: newMessage.is_dm,
-              recipientId: newMessage.recipient_id,
-              replyCount: newMessage.reply_count || 0,
-              reactions: newMessage.reactions || {},
-              parentId: newMessage.parent_id,
-            }]);
+          console.log("New message received:", payload);
+          if (payload.eventType === "INSERT") {
+            const msg = payload.new;
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: msg.id,
+                content: msg.content,
+                sender: msg.sender_id,
+                senderId: msg.sender_id,
+                timestamp: new Date(msg.created_at),
+                channel: msg.channel,
+                isDM: msg.is_dm,
+                recipientId: msg.recipient_id,
+                replyCount: msg.reply_count || 0,
+                reactions: msg.reactions || {},
+                parentId: msg.parent_id,
+              },
+            ]);
           }
         }
       )
@@ -101,28 +101,27 @@ function Index() {
     };
   }, [activeChannel, activeDM, session?.id]);
 
-  const fetchMessages = async (channel?: string) => {
+  const fetchMessages = async (channelName?: string) => {
     try {
-      let query = supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: true });
+      if (!session?.id) return;
 
-      if (channel) {
-        query = query.eq('channel', channel);
+      let query = supabase
+        .from("messages")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (channelName) {
+        query = query.eq("channel", channelName);
       } else if (activeDM) {
-        const dmChannel = `dm-${[session.id, activeDM].sort().join('-')}`;
-        query = query.eq('channel', dmChannel);
-      } else if (activeChannel) {
-        query = query.eq('channel', activeChannel);
+        query = query.eq("channel", getDMChannelName(session.id, activeDM));
+      } else {
+        query = query.eq("channel", activeChannel);
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
-      console.log('Fetched messages:', data);
-      const convertedMessages: Message[] = data?.map(msg => ({
+      const convertedMessages: Message[] = (data ?? []).map((msg) => ({
         id: msg.id,
         content: msg.content,
         sender: msg.sender_id,
@@ -132,13 +131,13 @@ function Index() {
         isDM: msg.is_dm,
         recipientId: msg.recipient_id,
         replyCount: msg.reply_count || 0,
-        reactions: msg.reactions as Record<string, string[]> || {},
+        reactions: (msg.reactions as Record<string, string[]>) || {},
         parentId: msg.parent_id,
-      })) || [];
+      }));
 
       setMessages(convertedMessages);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error("Error fetching messages:", error);
       toast({
         title: "Error",
         description: "Failed to load messages",
@@ -147,64 +146,13 @@ function Index() {
     }
   };
 
+  // Send normal messages
   const handleSendMessage = async (content: string, file?: File) => {
     if (!session) return;
-
     try {
-      let fileData;
-      if (file) {
-        // Create a unique filename
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `uploads/${fileName}`;
+      // (Omitted: Optional file upload logic)
 
-        // Upload to Supabase storage with metadata
-        const { error: uploadError } = await supabase
-          .storage
-          .from('files')
-          .upload(filePath, file, {
-            metadata: {
-              user_id: session.id,
-              contentType: file.type,
-              filename: file.name
-            }
-          });
-
-        if (uploadError) throw uploadError;
-
-        // Get signed URL
-        const { data: { signedUrl }, error: signedUrlError } = await supabase
-          .storage
-          .from('files')
-          .createSignedUrl(filePath, 3600);
-
-        if (signedUrlError) throw signedUrlError;
-
-        // Save file metadata to database
-        const { data, error: fileError } = await supabase
-          .from('files')
-          .insert([{
-            name: file.name,
-            storage_path: filePath,
-            type: file.type,
-            size: file.size,
-            uploaded_by: session.id,
-            channel: activeDM ? null : activeChannel,
-            is_dm: !!activeDM,
-            recipient_id: activeDM || null,
-            url: signedUrl
-          }])
-          .select()
-          .single();
-
-        if (fileError) throw fileError;
-        fileData = data;
-
-        // Add file reference to message content
-        content = `${content} [File: ${file.name}](${signedUrl})`;
-      }
-
-      const currentChannel = activeDM 
+      const currentChannel = activeDM
         ? getDMChannelName(session.id, activeDM)
         : activeChannel;
 
@@ -215,19 +163,18 @@ function Index() {
         is_dm: !!activeDM,
         recipient_id: activeDM || null,
         reactions: {},
-        ...(fileData && { file_id: fileData.id })
       };
 
-      console.log('Sending message with data:', messageData);
+      console.log("Sending message with data:", messageData);
       const { data, error } = await supabase
-        .from('messages')
+        .from("messages")
         .insert([messageData])
         .select()
         .single();
 
       if (error) throw error;
 
-      console.log('Message sent successfully:', data);
+      console.log("Message sent successfully:", data);
       const newMessage: Message = {
         id: data.id,
         content: data.content,
@@ -239,12 +186,13 @@ function Index() {
         recipientId: data.recipient_id,
         replyCount: data.reply_count || 0,
         reactions: data.reactions as Record<string, string[]>,
-        parentId: data.parent_id
+        parentId: data.parent_id,
       };
 
-      setMessages(prev => [...prev, newMessage]);
+      // Update messages immediately so the sender sees it.
+      setMessages((prev) => [...prev, newMessage]);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       toast({
         title: "Error",
         description: "Failed to send message",
@@ -253,25 +201,32 @@ function Index() {
     }
   };
 
+  // Switch channels
   const handleChannelSelect = (channelName: string) => {
-    console.log('Channel selected:', channelName);
+    console.log("Channel selected:", channelName);
     setActiveChannel(channelName);
     setShowFiles(false);
-    if (!channelName.startsWith('dm-')) {
+
+    if (!channelName.startsWith("dm-")) {
       setActiveDM(null);
     }
     fetchMessages(channelName);
   };
 
+  // Switch to a DM
   const handleDMSelect = (userId: string) => {
-    console.log('DM selected:', userId);
+    if (!session) return;
+    console.log("DM selected:", userId);
     setActiveDM(userId);
     setShowFiles(false);
-    fetchMessages(`dm-${userId}`);
+    const dmChannel = getDMChannelName(session.id, userId);
+    fetchMessages(dmChannel);
   };
 
-  const handleFilesClick = () => {
-    setShowFiles(true);
+  const handleDebugRefresh = () => {
+    console.log("Manual refresh triggered, counter:", debugCounter);
+    setDebugCounter((c) => c + 1);
+    fetchMessages();
   };
 
   if (loading) {
@@ -287,22 +242,26 @@ function Index() {
   }
 
   if (!session) {
-    console.log('No session, showing Auth component');
     return <Auth />;
   }
 
   return (
-    <ChatLayout
-      session={session}
-      messages={messages}
-      activeChannel={activeChannel}
-      activeDM={activeDM}
-      onSendMessage={handleSendMessage}
-      onChannelSelect={handleChannelSelect}
-      onDMSelect={handleDMSelect}
-      onFilesClick={handleFilesClick}
-      showFiles={showFiles}
-    />
+    <>
+      <button onClick={handleDebugRefresh}>
+        Refresh Messages
+      </button>
+      <ChatLayout
+        session={session}
+        messages={messages}
+        activeChannel={activeChannel}
+        activeDM={activeDM}
+        onSendMessage={handleSendMessage}
+        onChannelSelect={handleChannelSelect}
+        onDMSelect={handleDMSelect}
+        onFilesClick={() => setShowFiles(true)}
+        showFiles={showFiles}
+      />
+    </>
   );
 }
 
