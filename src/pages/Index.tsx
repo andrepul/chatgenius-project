@@ -23,7 +23,6 @@ function Index() {
 
   const { toast } = useToast();
 
-  // Fetch initial session
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
@@ -150,8 +149,6 @@ function Index() {
   const handleSendMessage = async (content: string, file?: File) => {
     if (!session) return;
     try {
-      // (Omitted: Optional file upload logic)
-
       const currentChannel = activeDM
         ? getDMChannelName(session.id, activeDM)
         : activeChannel;
@@ -175,22 +172,7 @@ function Index() {
       if (error) throw error;
 
       console.log("Message sent successfully:", data);
-      const newMessage: Message = {
-        id: data.id,
-        content: data.content,
-        sender: session.id,
-        senderId: data.sender_id,
-        timestamp: new Date(data.created_at),
-        channel: data.channel,
-        isDM: data.is_dm,
-        recipientId: data.recipient_id,
-        replyCount: data.reply_count || 0,
-        reactions: data.reactions as Record<string, string[]>,
-        parentId: data.parent_id,
-      };
-
-      // Update messages immediately so the sender sees it.
-      setMessages((prev) => [...prev, newMessage]);
+      // Removed the immediate state update since the subscription will handle it
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -201,7 +183,6 @@ function Index() {
     }
   };
 
-  // Switch channels
   const handleChannelSelect = (channelName: string) => {
     console.log("Channel selected:", channelName);
     setActiveChannel(channelName);
