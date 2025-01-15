@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ChatSidebar from "./ChatSidebar";
 import MessageList from "./MessageList";
 import ChatHeader from "./ChatHeader";
@@ -24,7 +24,7 @@ interface ChatLayoutProps {
 
 interface DMUser {
   id: string;
-  name: string;
+  username: string;
 }
 
 const ChatLayout = ({
@@ -42,13 +42,35 @@ const ChatLayout = ({
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
   const [activeThread, setActiveThread] = useState<Message | null>(null);
   const [showThread, setShowThread] = useState(false);
+  const [dmUsers, setDmUsers] = useState<Record<string, DMUser>>({});
   const { toast } = useToast();
 
-  const dmUsers: Record<string, DMUser> = {
-    "d7bed21c-5a38-4c44-87f5-7776d0ca3c33": { id: "d7bed21c-5a38-4c44-87f5-7776d0ca3c33", name: "Sarah Smith" },
-    "e9b74d3d-87a4-4c43-8f3e-64c2d6d65bd0": { id: "e9b74d3d-87a4-4c43-8f3e-64c2d6d65bd0", name: "John Doe" },
-    "f6d8a35b-2e9c-4c47-8f1a-25d2d6d65bd0": { id: "f6d8a35b-2e9c-4c47-8f1a-25d2d6d65bd0", name: "Alice Johnson" }
-  };
+  // Fetch DM user information
+  useEffect(() => {
+    const fetchDMUsers = async () => {
+      try {
+        const { data: profiles, error } = await supabase
+          .from('profiles')
+          .select('id, username');
+        
+        if (error) throw error;
+
+        const usersMap: Record<string, DMUser> = {};
+        profiles?.forEach(profile => {
+          usersMap[profile.id] = {
+            id: profile.id,
+            username: profile.username || 'Unknown User'
+          };
+        });
+        
+        setDmUsers(usersMap);
+      } catch (error) {
+        console.error('Error fetching DM users:', error);
+      }
+    };
+
+    fetchDMUsers();
+  }, []);
 
   const handleThreadClick = (message: Message) => {
     console.log('Opening thread for message:', message);
@@ -63,7 +85,7 @@ const ChatLayout = ({
   const handleSendReply = async (content: string, parentId: number, attachment?: File) => {
     console.log('Sending reply:', { content, parentId, attachment });
     
-    const currentChannel = activeDM ? `dm-${activeDM}` : activeChannel;
+    const currentChannel = activeDM ? `dm-${[session.id, activeDM].sort().join('-')}` : activeChannel;
     console.log('Current channel for reply:', currentChannel);
     
     const messageData = {
@@ -113,17 +135,19 @@ const ChatLayout = ({
 
   const filteredMessages = messages.filter((message) => {
     const matchesSearch = message.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesChannel = searchScope === "global" || 
-      (activeDM 
-        ? message.isDM && message.channel === `dm-${activeDM}`
-        : message.channel === activeChannel);
-    return (!searchQuery || matchesSearch) && matchesChannel;
+    
+    if (activeDM) {
+      const dmChannelName = `dm-${[session.id, activeDM].sort().join('-')}`;
+      return (!searchQuery || matchesSearch) && message.channel === dmChannelName;
+    }
+    
+    return (!searchQuery || matchesSearch) && message.channel === activeChannel && !message.isDM;
   });
 
   const getDisplayName = () => {
     if (activeDM) {
       const dmUser = dmUsers[activeDM];
-      return dmUser ? dmUser.name : "Unknown User";
+      return dmUser ? dmUser.username : "Unknown User";
     }
     return `#${activeChannel}`;
   };
@@ -157,6 +181,7 @@ const ChatLayout = ({
             <ChatInput 
               onSendMessage={handleSendMessage}
               activeChannel={activeChannel}
+              placeholder={`Message ${getDisplayName()}`}
             />
           </>
         )}
