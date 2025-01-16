@@ -14,13 +14,11 @@ function Index() {
   const [session, setSession] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [activeChannel, setActiveChannel] = useState("general");
   const [activeDM, setActiveDM] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [showFiles, setShowFiles] = useState(false);
   const [debugCounter, setDebugCounter] = useState(0);
-
   const { toast } = useToast();
 
   useEffect(() => {
@@ -159,7 +157,8 @@ function Index() {
         reactions: {},
       });
 
-      const { data, error } = await supabase
+      // First, save the user's message
+      const { data: messageData, error: messageError } = await supabase
         .from("messages")
         .insert([
           {
@@ -174,9 +173,9 @@ function Index() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (messageError) throw messageError;
 
-      console.log("Message sent successfully:", data);
+      console.log("Message sent successfully:", messageData);
 
       // If this is the ask-ai channel, call the AI function
       if (currentChannel === 'ask-ai') {
@@ -192,6 +191,8 @@ function Index() {
               description: "Failed to get AI response",
               variant: "destructive",
             });
+          } else {
+            console.log('AI response received:', aiResponse);
           }
         } catch (aiError) {
           console.error('Error invoking AI function:', aiError);

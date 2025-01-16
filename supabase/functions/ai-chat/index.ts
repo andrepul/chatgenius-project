@@ -1,7 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import "https://deno.land/x/xhr@0.1.0/mod.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
-import { OpenAI } from "https://esm.sh/openai@4.20.1"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,8 +14,8 @@ serve(async (req) => {
   }
 
   try {
-    const { message, channelContext = true } = await req.json()
-    console.log('Received request:', { message, channelContext })
+    const { message } = await req.json()
+    console.log('Received message:', message)
 
     // Initialize OpenAI
     const openai = new OpenAI({
@@ -65,12 +64,25 @@ serve(async (req) => {
 
     const aiResponse = completion.choices[0].message.content
 
-    // Store AI response in messages
+    // Get the sender ID of the original message sender
+    const { data: senderData, error: senderError } = await supabaseClient
+      .from('messages')
+      .select('sender_id')
+      .eq('content', message)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (senderError) {
+      throw senderError
+    }
+
+    // Store AI response in messages using the original sender's ID
     const { error: insertError } = await supabaseClient
       .from('messages')
       .insert({
         content: aiResponse,
-        sender_id: '00000000-0000-0000-0000-000000000000', // Special ID for Genie
+        sender_id: senderData.sender_id, // Use the original sender's ID
         channel: 'ask-ai',
         is_dm: false
       })
