@@ -37,7 +37,6 @@ function Index() {
       setLoading(false);
     });
 
-    // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -52,7 +51,6 @@ function Index() {
     };
   }, []);
 
-  // Only one subscription: filtered by activeChannel or activeDM
   useEffect(() => {
     if (!session?.id) return;
 
@@ -145,7 +143,6 @@ function Index() {
     }
   };
 
-  // Send normal messages
   const handleSendMessage = async (content: string, file?: File) => {
     if (!session) return;
     try {
@@ -153,26 +150,58 @@ function Index() {
         ? getDMChannelName(session.id, activeDM)
         : activeChannel;
 
-      const messageData = {
+      console.log("Sending message with data:", {
         content,
         sender_id: session.id,
         channel: currentChannel,
         is_dm: !!activeDM,
         recipient_id: activeDM || null,
         reactions: {},
-      };
+      });
 
-      console.log("Sending message with data:", messageData);
       const { data, error } = await supabase
         .from("messages")
-        .insert([messageData])
+        .insert([
+          {
+            content,
+            sender_id: session.id,
+            channel: currentChannel,
+            is_dm: !!activeDM,
+            recipient_id: activeDM || null,
+            reactions: {},
+          },
+        ])
         .select()
         .single();
 
       if (error) throw error;
 
       console.log("Message sent successfully:", data);
-      // Removed the immediate state update since the subscription will handle it
+
+      // If this is the ask-ai channel, call the AI function
+      if (currentChannel === 'ask-ai') {
+        try {
+          const { data: aiResponse, error: aiError } = await supabase.functions.invoke('ai-chat', {
+            body: { message: content }
+          });
+
+          if (aiError) {
+            console.error('Error calling AI:', aiError);
+            toast({
+              title: "AI Error",
+              description: "Failed to get AI response",
+              variant: "destructive",
+            });
+          }
+        } catch (aiError) {
+          console.error('Error invoking AI function:', aiError);
+          toast({
+            title: "AI Error",
+            description: "Failed to connect to AI service",
+            variant: "destructive",
+          });
+        }
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -194,7 +223,6 @@ function Index() {
     fetchMessages(channelName);
   };
 
-  // Switch to a DM
   const handleDMSelect = (userId: string) => {
     if (!session) return;
     console.log("DM selected:", userId);
