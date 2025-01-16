@@ -29,29 +29,29 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Fetch recent messages for context
-    const { data: recentMessages, error: messagesError } = await supabaseClient
+    // Fetch ALL messages for context, ordered by creation time
+    const { data: allMessages, error: messagesError } = await supabaseClient
       .from('messages')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
+      .order('created_at', { ascending: true })
 
     if (messagesError) {
       throw messagesError
     }
 
-    // Format messages for context
-    const messageHistory = recentMessages
+    // Format ALL messages for context
+    const messageHistory = allMessages
       .map(msg => `${msg.sender_id}: ${msg.content}`)
-      .reverse()
       .join('\n')
 
-    // Create system message
+    console.log('Using full message history for context')
+
+    // Create system message with complete context
     const systemMessage = `You are Genie, a helpful AI assistant in a chat application. 
-    You have access to recent message history for context.
+    You have access to the complete message history for context.
     Always be friendly and concise in your responses.
     
-    Recent chat history:
+    Complete chat history:
     ${messageHistory}`
 
     // Generate AI response
@@ -83,7 +83,7 @@ serve(async (req) => {
       .from('messages')
       .insert({
         content: aiResponse,
-        sender_id: senderData.sender_id, // Use the original sender's ID
+        sender_id: senderData.sender_id,
         channel: 'ask-ai',
         is_dm: false
       })
