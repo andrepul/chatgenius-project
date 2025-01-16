@@ -13,6 +13,7 @@ const ChannelList = ({ activeChannel, onChannelSelect }: ChannelListProps) => {
     { id: 1, name: "general" },
     { id: 2, name: "random" },
     { id: 3, name: "introductions" },
+    { id: 4, name: "investments" }
   ];
 
   return (

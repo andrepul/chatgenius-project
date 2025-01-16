@@ -132,6 +132,7 @@ const ChatLayout = ({
 
   const handleSendMessage = async (content: string, file?: File) => {
     if (!session) return;
+    console.log('Handling send message with file:', file?.name); //[ALP] Adding back from failed attempt by Loveable
     onSendMessage(content, file);
   };
 
