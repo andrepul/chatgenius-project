@@ -26,6 +26,13 @@ const ChatMessage = ({
   useEffect(() => {
     const fetchSenderInfo = async () => {
       try {
+        // Special handling for AI messages
+        if (message.sender === '00000000-0000-0000-0000-000000000000') {
+          setSenderName('Genie');
+          setSenderStatus('online');
+          return;
+        }
+
         console.log('Fetching sender info for:', message.sender);
         const { data: profile, error } = await supabase
           .from('profiles')
@@ -136,7 +143,11 @@ const ChatMessage = ({
     <div className="py-2 px-4 hover:bg-chat-hover">
       <div className="flex items-start space-x-3">
         <div className="relative flex-shrink-0">
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
+          <div className={`w-8 h-8 rounded-full ${
+            message.sender === '00000000-0000-0000-0000-000000000000' 
+              ? 'bg-purple-500' 
+              : 'bg-primary'
+          } flex items-center justify-center text-white`}>
             {senderName[0].toUpperCase()}
           </div>
           <Circle 
@@ -155,11 +166,9 @@ const ChatMessage = ({
           </div>
           
           {/* Message content */}
-          {cleanedContent && (
-            <div className="break-words whitespace-pre-wrap overflow-hidden mb-2">
-              {cleanedContent}
-            </div>
-          )}
+          <div className="break-words whitespace-pre-wrap overflow-hidden mb-2">
+            {message.content}
+          </div>
 
           {/* File attachment */}
           {fileName && fileUrl && (
@@ -191,7 +200,7 @@ const ChatMessage = ({
             ))}
             <EmojiPicker onEmojiSelect={(emoji) => onReaction?.(message.id, emoji)} />
             
-            {showThread && (
+            {showThread && message.sender !== '00000000-0000-0000-0000-000000000000' && (
               <button
                 onClick={() => onThreadClick?.(message)}
                 className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
