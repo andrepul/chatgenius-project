@@ -29,34 +29,48 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Fetch ALL messages for context, ordered by creation time
-    const { data: allMessages, error: messagesError } = await supabaseClient
-      .from('messages')
-      .select('*')
-      .order('created_at', { ascending: true })
+    // Generate embeddings for the query
+    console.log('Generating embeddings for query:', message)
+    const embeddingResponse = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: message,
+    })
+    const queryEmbedding = embeddingResponse.data[0].embedding
 
-    if (messagesError) {
-      throw messagesError
+    // Perform semantic search using embeddings
+    console.log('Performing semantic search')
+    const { data: relevantMessages, error: searchError } = await supabaseClient.rpc(
+      'match_messages',
+      {
+        query_embedding: queryEmbedding,
+        match_threshold: 0.5, // Adjust this threshold as needed
+        match_count: 10 // Number of relevant messages to retrieve
+      }
+    )
+
+    if (searchError) {
+      console.error('Error in semantic search:', searchError)
+      throw searchError
     }
 
-    // Format ALL messages for context
-    const messageHistory = allMessages
-      .map(msg => `${msg.sender_id}: ${msg.content}`)
+    // Format relevant messages for context
+    const messageHistory = relevantMessages
+      ?.map(msg => `${msg.sender_id}: ${msg.content}`)
       .join('\n')
 
-    console.log('Using full message history for context')
+    console.log('Using semantically relevant messages for context')
 
-    // Create system message with complete context
+    // Create system message with relevant context
     const systemMessage = `You are Genie, a helpful AI assistant in a chat application. 
-    You have access to the complete message history for context.
+    You have access to semantically relevant messages from the chat history.
     Always be friendly and concise in your responses.
     
-    Complete chat history:
+    Relevant chat context:
     ${messageHistory}`
 
     // Generate AI response
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4",
       messages: [
         { role: "system", content: systemMessage },
         { role: "user", content: message }
@@ -78,7 +92,7 @@ serve(async (req) => {
       throw senderError
     }
 
-    // Store AI response in messages using the original sender's ID
+    // Store AI response in messages
     const { error: insertError } = await supabaseClient
       .from('messages')
       .insert({
