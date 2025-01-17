@@ -9,27 +9,25 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { message } = await req.json()
     console.log('Received message:', message)
 
-    // Initialize OpenAI
+    // Initialize OpenAI and Supabase
     const openai = new OpenAI({
       apiKey: Deno.env.get('OPENAI_API_KEY')
     })
 
-    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Generate embeddings for the query
+    // Generate embeddings for query
     console.log('Generating embeddings for query:', message)
     const embeddingResponse = await openai.embeddings.create({
       model: "text-embedding-3-small",
@@ -37,14 +35,14 @@ serve(async (req) => {
     })
     const queryEmbedding = embeddingResponse.data[0].embedding
 
-    // Perform semantic search using embeddings
-    console.log('Performing semantic search')
+    // Perform semantic search
+    console.log('Performing semantic search with threshold 0.3')
     const { data: relevantMessages, error: searchError } = await supabaseClient.rpc(
       'match_messages',
       {
         query_embedding: queryEmbedding,
-        match_threshold: 0.5, // Adjust this threshold as needed
-        match_count: 10 // Number of relevant messages to retrieve
+        match_threshold: 0.3,
+        match_count: 20
       }
     )
 
@@ -53,20 +51,27 @@ serve(async (req) => {
       throw searchError
     }
 
+    console.log('Found messages:', relevantMessages?.length || 0)
+    console.log('Messages:', relevantMessages)
+
     // Format relevant messages for context
     const messageHistory = relevantMessages
-      ?.map(msg => `${msg.sender_id}: ${msg.content}`)
+      ?.map(msg => `Message: ${msg.content} (Similarity: ${msg.similarity.toFixed(2)})`)
       .join('\n')
 
-    console.log('Using semantically relevant messages for context')
+    console.log('Context being used:', messageHistory)
 
-    // Create system message with relevant context
+    // Create system message
     const systemMessage = `You are Genie, a helpful AI assistant in a chat application. 
-    You have access to semantically relevant messages from the chat history.
-    Always be friendly and concise in your responses.
+    You have access to the chat history of this application through semantic search.
+    You should use the provided chat context to answer questions about conversations that happened in the app.
+    If you see messages in the context, use them to provide specific answers about the conversations.
+    If you don't find any relevant messages in the context, let the user know that you couldn't find those specific messages.
     
-    Relevant chat context:
-    ${messageHistory}`
+    Here are the most relevant messages from the chat history that match the current query:
+    ${messageHistory}
+    
+    Based on this context, provide a natural and informative response.`
 
     // Generate AI response
     const completion = await openai.chat.completions.create({
@@ -79,37 +84,23 @@ serve(async (req) => {
 
     const aiResponse = completion.choices[0].message.content
 
-    // Get the sender ID of the original message sender
-    const { data: senderData, error: senderError } = await supabaseClient
-      .from('messages')
-      .select('sender_id')
-      .eq('content', message)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (senderError) {
-      throw senderError
-    }
-
-    // Generate embedding for AI response
+    // Store AI response with embedding
     const responseEmbedding = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: aiResponse,
     })
 
-    // Store AI response in messages with embedding
     const { error: insertError } = await supabaseClient
       .from('messages')
       .insert({
         content: aiResponse,
-        sender_id: senderData.sender_id,
+        sender_id: 'ai-assistant',
         channel: 'ask-ai',
-        is_dm: false,
         embedding: responseEmbedding.data[0].embedding
       })
 
     if (insertError) {
+      console.error('Error storing AI response:', insertError)
       throw insertError
     }
 

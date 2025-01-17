@@ -132,8 +132,29 @@ const ChatLayout = ({
 
   const handleSendMessage = async (content: string, file?: File) => {
     if (!session) return;
-    console.log('Handling send message with file:', file?.name); //[ALP] Adding back from failed attempt by Loveable
-    onSendMessage(content, file);
+    console.log('Handling send message with file:', file?.name);
+    
+    try {
+      // First send the message
+      const response = await onSendMessage(content, file);
+      
+      // If message was sent successfully, generate embedding
+      if (response?.data?.id) {
+        console.log('Generating embedding for message:', response.data.id);
+        const { error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
+          body: { 
+            messageId: response.data.id,
+            content: content
+          }
+        });
+        
+        if (embeddingError) {
+          console.error('Error generating embedding:', embeddingError);
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleSendMessage:', error);
+    }
   };
 
   const filteredMessages = messages.filter((message) => {
