@@ -17,7 +17,6 @@ serve(async (req) => {
     const { message } = await req.json()
     console.log('Received message:', message)
 
-    // Initialize OpenAI and Supabase
     const openai = new OpenAI({
       apiKey: Deno.env.get('OPENAI_API_KEY')
     })
@@ -36,7 +35,7 @@ serve(async (req) => {
     const queryEmbedding = embeddingResponse.data[0].embedding
 
     // Perform semantic search
-    console.log('Performing semantic search with threshold 0.3')
+    console.log('Performing semantic search')
     const { data: relevantMessages, error: searchError } = await supabaseClient.rpc(
       'match_messages',
       {
@@ -52,49 +51,46 @@ serve(async (req) => {
     }
 
     console.log('Found messages:', relevantMessages?.length || 0)
-    console.log('Messages:', relevantMessages)
 
-    // Format relevant messages for context
+    // Format context from relevant messages
     const messageHistory = relevantMessages
       ?.map(msg => `Message: ${msg.content} (Similarity: ${msg.similarity.toFixed(2)})`)
       .join('\n')
 
-    console.log('Context being used:', messageHistory)
-
-    // Create system message
-    const systemMessage = `You are Genie, a helpful AI assistant in a chat application. 
-    You have access to the chat history of this application through semantic search.
-    You should use the provided chat context to answer questions about conversations that happened in the app.
-    If you see messages in the context, use them to provide specific answers about the conversations.
-    If you don't find any relevant messages in the context, let the user know that you couldn't find those specific messages.
-    
-    Here are the most relevant messages from the chat history that match the current query:
-    ${messageHistory}
-    
-    Based on this context, provide a natural and informative response.`
+    console.log('Using semantically relevant messages for context')
 
     // Generate AI response
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: systemMessage },
+        { 
+          role: "system", 
+          content: `You are a helpful AI assistant in a chat application. You have access to the chat history through semantic search.
+                   Use the provided chat context to answer questions about conversations that happened in the app.
+                   Here are the most relevant messages from the chat history:
+                   ${messageHistory}` 
+        },
         { role: "user", content: message }
       ],
     })
 
     const aiResponse = completion.choices[0].message.content
 
-    // Store AI response with embedding
+    // Generate embedding for AI response
     const responseEmbedding = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: aiResponse,
     })
 
+    // Generate a UUID for the AI message
+    const aiUserId = crypto.randomUUID()
+
+    // Store AI response with embedding
     const { error: insertError } = await supabaseClient
       .from('messages')
       .insert({
         content: aiResponse,
-        sender_id: 'ai-assistant',
+        sender_id: aiUserId,
         channel: 'ask-ai',
         embedding: responseEmbedding.data[0].embedding
       })

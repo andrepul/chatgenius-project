@@ -177,6 +177,21 @@ function Index() {
 
       console.log("Message sent successfully:", messageData);
 
+      // Generate embedding for the message
+      if (messageData?.id) {
+        console.log('Generating embedding for message:', messageData.id);
+        const { error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
+          body: { 
+            messageId: messageData.id,
+            content: content
+          }
+        });
+        
+        if (embeddingError) {
+          console.error('Error generating embedding:', embeddingError);
+        }
+      }
+
       // If this is the ask-ai channel, call the AI function
       if (currentChannel === 'ask-ai') {
         try {
@@ -203,6 +218,8 @@ function Index() {
           });
         }
       }
+
+      return { data: messageData, error: null };
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -210,6 +227,7 @@ function Index() {
         description: "Failed to send message",
         variant: "destructive",
       });
+      return { data: null, error };
     }
   };
 
