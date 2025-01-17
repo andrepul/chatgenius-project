@@ -182,7 +182,7 @@ const ChatLayout = ({
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen w-full overflow-hidden">
       <ChatSidebar
         activeChannel={activeChannel}
         onChannelSelect={onChannelSelect}
@@ -190,7 +190,7 @@ const ChatLayout = ({
         currentUser={session.id}
         onFilesClick={onFilesClick}
       />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 w-full">
         {showFiles ? (
           <FilesView currentUser={session.id} />
         ) : (
@@ -202,11 +202,13 @@ const ChatLayout = ({
               onSearchQueryChange={setSearchQuery}
               onSearchScopeChange={setSearchScope}
             />
-            <MessageList
-              messages={filteredMessages}
-              currentUser={session.id}
-              onThreadClick={handleThreadClick}
-            />
+            <div className="flex-1 overflow-y-auto">
+              <MessageList
+                messages={filteredMessages}
+                currentUser={session.id}
+                onThreadClick={handleThreadClick}
+              />
+            </div>
             <ChatInput 
               onSendMessage={handleSendMessage}
               activeChannel={activeChannel}
