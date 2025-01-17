@@ -8,6 +8,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Use a fixed UUID for the AI assistant
+const AI_ASSISTANT_ID = "00000000-0000-0000-0000-000000000000"
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -25,6 +28,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
+
+    // First, ensure the AI assistant profile exists
+    const { error: profileError } = await supabaseClient
+      .from('profiles')
+      .upsert({
+        id: AI_ASSISTANT_ID,
+        username: 'AI Assistant',
+        status: 'online'
+      }, {
+        onConflict: 'id'
+      })
+
+    if (profileError) {
+      console.error('Error ensuring AI profile:', profileError)
+      throw profileError
+    }
 
     // Generate embeddings for query
     console.log('Generating embeddings for query:', message)
@@ -82,15 +101,12 @@ serve(async (req) => {
       input: aiResponse,
     })
 
-    // Generate a UUID for the AI message
-    const aiUserId = crypto.randomUUID()
-
     // Store AI response with embedding
     const { error: insertError } = await supabaseClient
       .from('messages')
       .insert({
         content: aiResponse,
-        sender_id: aiUserId,
+        sender_id: AI_ASSISTANT_ID,
         channel: 'ask-ai',
         embedding: responseEmbedding.data[0].embedding
       })
