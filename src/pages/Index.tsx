@@ -277,10 +277,7 @@ function Index() {
   }
 
   return (
-    <>
-      <button onClick={handleDebugRefresh}>
-        Refresh Messages
-      </button>
+    <div className="flex h-screen">
       <ChatLayout
         session={session}
         messages={messages}
@@ -292,7 +289,7 @@ function Index() {
         onFilesClick={() => setShowFiles(true)}
         showFiles={showFiles}
       />
-    </>
+    </div>
   );
 }
 

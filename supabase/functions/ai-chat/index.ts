@@ -44,8 +44,8 @@ serve(async (req) => {
       'match_messages',
       {
         query_embedding: queryEmbedding,
-        match_threshold: 0.1, // Lowered from 0.3 to get more matches
-        match_count: 50 // Increased from 20 to get more context
+        match_threshold: 0.3, // Trying to balance noise and enough context
+        match_count: 20 // Trying to balance dilution of relevant content and not enough content
       }
     )
 
@@ -73,7 +73,7 @@ serve(async (req) => {
 
     // Generate AI response with more explicit instructions
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4", //model: "gpt-4o",
       messages: [
         { 
           role: "system", 
