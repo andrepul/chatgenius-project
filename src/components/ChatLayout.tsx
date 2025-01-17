@@ -15,7 +15,7 @@ interface ChatLayoutProps {
   messages: Message[];
   activeChannel: string;
   activeDM?: string | null;
-  onSendMessage: (content: string, file?: File) => void;
+  onSendMessage: (content: string, file?: File) => Promise<{ data: any; error: any | null; }>;
   onChannelSelect: (channelName: string) => void;
   onDMSelect?: (userId: string) => void;
   onFilesClick: () => void;
@@ -75,13 +75,13 @@ const ChatLayout = ({
   const handleThreadClick = (message: Message) => {
     console.log('Opening thread for message:', message);
     setActiveThread(message);
-    setShowThread(true);  // Make sure to set showThread to true
+    setShowThread(true);
   };
 
   const handleCloseThread = () => {
     console.log('Closing thread');
     setActiveThread(null);
-    setShowThread(false);  // Make sure to set showThread to false when closing
+    setShowThread(false);
   };
 
   const handleSendReply = async (content: string, parentId: number, attachment?: File) => {
@@ -119,7 +119,10 @@ const ChatLayout = ({
 
       if (updateError) throw updateError;
 
-      onSendMessage(content, attachment);
+      const response = await onSendMessage(content, attachment);
+      if (response.error) {
+        throw response.error;
+      }
     } catch (error) {
       console.error('Error sending reply:', error);
       toast({
@@ -135,11 +138,13 @@ const ChatLayout = ({
     console.log('Handling send message with file:', file?.name);
     
     try {
-      // First send the message
       const response = await onSendMessage(content, file);
+      if (response.error) {
+        throw response.error;
+      }
       
-      // If message was sent successfully, generate embedding
-      if (response?.data?.id) {
+      // If message was sent successfully and has an ID, generate embedding
+      if (response.data?.id) {
         console.log('Generating embedding for message:', response.data.id);
         const { error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
           body: { 
