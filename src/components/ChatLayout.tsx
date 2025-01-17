@@ -189,8 +189,9 @@ const ChatLayout = ({
         onDMSelect={onDMSelect}
         currentUser={session.id}
         onFilesClick={onFilesClick}
+        className="border-r border-gray-200 dark:border-gray-800"
       />
-      <div className="flex-1 flex flex-col min-w-0 w-full">
+      <div className="flex-1 flex flex-col min-w-0 w-full border-l border-gray-200 dark:border-gray-800">
         {showFiles ? (
           <FilesView currentUser={session.id} />
         ) : (
@@ -201,6 +202,7 @@ const ChatLayout = ({
               searchScope={searchScope}
               onSearchQueryChange={setSearchQuery}
               onSearchScopeChange={setSearchScope}
+              className="border-b border-gray-200 dark:border-gray-800"
             />
             <div className="flex-1 overflow-y-auto">
               <MessageList
@@ -223,6 +225,7 @@ const ChatLayout = ({
           messages={messages}
           onClose={handleCloseThread}
           onSendReply={handleSendReply}
+          className="border-l border-gray-200 dark:border-gray-800"
         />
       )}
     </div>

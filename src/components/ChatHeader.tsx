@@ -29,7 +29,7 @@ const ChatHeader = ({
   onSearchScopeChange,
 }: ChatHeaderProps) => {
   return (
-    <div className="p-4 border-b flex justify-between items-center">
+    <div className="h-16 px-4 border-b flex justify-between items-center">
       <h1 className="text-xl font-semibold">{displayName}</h1>
       <div className="flex items-center gap-2">
         <div className="relative">
