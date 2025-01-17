@@ -8,17 +8,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Use a fixed UUID for the AI assistant
-const AI_ASSISTANT_ID = "00000000-0000-0000-0000-000000000000"
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { message } = await req.json()
+    const { message, senderId } = await req.json()
     console.log('Received message:', message)
+
+    if (!senderId) {
+      throw new Error('senderId is required')
+    }
 
     const openai = new OpenAI({
       apiKey: Deno.env.get('OPENAI_API_KEY')
@@ -28,22 +29,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
-
-    // First, ensure the AI assistant profile exists
-    const { error: profileError } = await supabaseClient
-      .from('profiles')
-      .upsert({
-        id: AI_ASSISTANT_ID,
-        username: 'AI Assistant',
-        status: 'online'
-      }, {
-        onConflict: 'id'
-      })
-
-    if (profileError) {
-      console.error('Error ensuring AI profile:', profileError)
-      throw profileError
-    }
 
     // Generate embeddings for query
     console.log('Generating embeddings for query:', message)
@@ -69,7 +54,7 @@ serve(async (req) => {
       throw searchError
     }
 
-    console.log('Found messages:', relevantMessages?.length || 0)
+    console.log('Found relevant messages:', relevantMessages?.length || 0)
 
     // Format context from relevant messages
     const messageHistory = relevantMessages
@@ -106,7 +91,7 @@ serve(async (req) => {
       .from('messages')
       .insert({
         content: aiResponse,
-        sender_id: AI_ASSISTANT_ID,
+        sender_id: senderId,  // Use the sender's ID for the AI response
         channel: 'ask-ai',
         embedding: responseEmbedding.data[0].embedding
       })

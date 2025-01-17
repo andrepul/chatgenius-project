@@ -196,7 +196,10 @@ function Index() {
       if (currentChannel === 'ask-ai') {
         try {
           const { data: aiResponse, error: aiError } = await supabase.functions.invoke('ai-chat', {
-            body: { message: content }
+            body: { 
+              message: content,
+              senderId: session.id  // Pass the sender's ID to the AI function
+            }
           });
 
           if (aiError) {
