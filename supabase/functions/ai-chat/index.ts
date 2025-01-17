@@ -70,7 +70,7 @@ serve(async (req) => {
 
     // Generate AI response
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemMessage },
         { role: "user", content: message }
@@ -92,14 +92,21 @@ serve(async (req) => {
       throw senderError
     }
 
-    // Store AI response in messages
+    // Generate embedding for AI response
+    const responseEmbedding = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: aiResponse,
+    })
+
+    // Store AI response in messages with embedding
     const { error: insertError } = await supabaseClient
       .from('messages')
       .insert({
         content: aiResponse,
         sender_id: senderData.sender_id,
         channel: 'ask-ai',
-        is_dm: false
+        is_dm: false,
+        embedding: responseEmbedding.data[0].embedding
       })
 
     if (insertError) {
