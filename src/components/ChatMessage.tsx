@@ -135,12 +135,19 @@ const ChatMessage = ({
     }
   };
 
+  const handleEmojiSelect = (emoji: string) => {
+    if (onReaction) {
+      console.log('Emoji selected:', emoji, 'for message:', message.id);
+      onReaction(message.id, emoji);
+    }
+  };
+
   const fileName = extractFileInfo(message.content);
   const fileUrl = extractFileUrl(message.content);
   const cleanedContent = cleanContent(message.content);
   
   return (
-    <div className="py-2 px-4 hover:bg-chat-hover">
+    <div className="py-2 px-4 hover:bg-chat-hover group">
       <div className="flex items-start space-x-3">
         <div className="relative flex-shrink-0">
           <div className={`w-8 h-8 rounded-full ${
@@ -165,12 +172,10 @@ const ChatMessage = ({
             </span>
           </div>
           
-          {/* Message content */}
           <div className="break-words whitespace-pre-wrap overflow-hidden mb-2">
-            {message.content}
+            {cleanedContent}
           </div>
 
-          {/* File attachment */}
           {fileName && fileUrl && (
             <div 
               className="mt-2 flex items-center space-x-2 p-2 bg-accent rounded-lg w-fit cursor-pointer hover:bg-accent/80 transition-colors"
@@ -198,7 +203,9 @@ const ChatMessage = ({
                 <span>{users.length}</span>
               </button>
             ))}
-            <EmojiPicker onEmojiSelect={(emoji) => onReaction?.(message.id, emoji)} />
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+            </div>
             
             {showThread && message.sender !== '00000000-0000-0000-0000-000000000000' && (
               <button
@@ -206,9 +213,7 @@ const ChatMessage = ({
                 className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
               >
                 <MessageSquare size={14} />
-                {message.replyCount === 0
-                  ? "Reply"
-                  : `${message.replyCount} ${message.replyCount === 1 ? "reply" : "replies"}`}
+                {message.replyCount || 0}
               </button>
             )}
           </div>

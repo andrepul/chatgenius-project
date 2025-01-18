@@ -6,9 +6,10 @@ interface MessageListProps {
   messages: Message[];
   currentUser: string;
   onThreadClick: (message: Message) => void;
+  onReaction?: (messageId: number, emoji: string) => void;
 }
 
-const MessageList = ({ messages, currentUser, onThreadClick }: MessageListProps) => {
+const MessageList = ({ messages, currentUser, onThreadClick, onReaction }: MessageListProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -28,6 +29,7 @@ const MessageList = ({ messages, currentUser, onThreadClick }: MessageListProps)
           message={message}
           currentUser={currentUser}
           onThreadClick={onThreadClick}
+          onReaction={onReaction}
         />
       ))}
       <div ref={messagesEndRef} />

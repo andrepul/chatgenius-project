@@ -266,6 +266,63 @@ function Index() {
     fetchMessages();
   };
 
+  const handleReaction = async (messageId: number, emoji: string) => {
+    if (!session) return;
+    
+    try {
+      // Get current message
+      const { data: message, error: fetchError } = await supabase
+        .from("messages")
+        .select("reactions")
+        .eq("id", messageId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update reactions
+      const currentReactions = message.reactions || {};
+      const userReactions = currentReactions[emoji] || [];
+      
+      let newReactions;
+      if (userReactions.includes(session.id)) {
+        // Remove reaction if user already reacted
+        newReactions = {
+          ...currentReactions,
+          [emoji]: userReactions.filter(id => id !== session.id)
+        };
+      } else {
+        // Add reaction
+        newReactions = {
+          ...currentReactions,
+          [emoji]: [...userReactions, session.id]
+        };
+      }
+
+      // Update message
+      const { error: updateError } = await supabase
+        .from("messages")
+        .update({ reactions: newReactions })
+        .eq("id", messageId);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, reactions: newReactions }
+          : msg
+      ));
+
+    } catch (error) {
+      console.error("Error handling reaction:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update reaction",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
@@ -294,6 +351,7 @@ function Index() {
         onDMSelect={handleDMSelect}
         onFilesClick={() => setShowFiles(true)}
         showFiles={showFiles}
+        onReaction={handleReaction}
       />
     </div>
   );

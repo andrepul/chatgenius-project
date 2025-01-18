@@ -13,7 +13,7 @@ const EmojiPicker = ({ onEmojiSelect }: EmojiPickerProps) => {
       <PopoverTrigger>
         <Smile className="h-4 w-4 text-muted-foreground hover:text-foreground" />
       </PopoverTrigger>
-      <PopoverContent className="w-full p-2">
+      <PopoverContent className="w-full p-2 bg-background/95">
         <div className="flex flex-wrap gap-2">
           {commonEmojis.map((emoji) => (
             <button

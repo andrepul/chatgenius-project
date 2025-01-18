@@ -20,6 +20,7 @@ interface ChatLayoutProps {
   onDMSelect?: (userId: string) => void;
   onFilesClick: () => void;
   showFiles: boolean;
+  onReaction?: (messageId: number, emoji: string) => void;
 }
 
 interface DMUser {
@@ -37,6 +38,7 @@ const ChatLayout = ({
   onDMSelect,
   onFilesClick,
   showFiles,
+  onReaction,
 }: ChatLayoutProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<"channel" | "global">("channel");
@@ -209,6 +211,7 @@ const ChatLayout = ({
                 messages={filteredMessages}
                 currentUser={session.id}
                 onThreadClick={handleThreadClick}
+                onReaction={onReaction}
               />
             </div>
             <ChatInput 
