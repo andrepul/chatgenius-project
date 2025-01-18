@@ -22,14 +22,15 @@ function Index() {
   const { toast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    supabase.auth.getSession().then(({ data: { session: authSession }, error }) => {
       if (error) {
         console.error("Session error:", error);
         setError(error.message);
       } else {
-        setSession(session?.user ?? null);
-        if (session?.user) {
-          fetchMessages();
+        setSession(authSession?.user ?? null);
+        if (authSession?.user) {
+          console.log("Initial fetch for general channel with user:", authSession.user.id);
+          fetchMessages("general", authSession.user.id);
         }
       }
       setLoading(false);
@@ -39,9 +40,6 @@ function Index() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session?.user ?? null);
-      if (session?.user) {
-        fetchMessages();
-      }
     });
 
     return () => {
@@ -52,54 +50,55 @@ function Index() {
   useEffect(() => {
     if (!session?.id) return;
 
-    const channelFilter = activeDM
-      ? `channel=eq.${getDMChannelName(session.id, activeDM)}`
-      : `channel=eq.${activeChannel}`;
-
+    console.log("Setting up real-time subscription for channel:", activeChannel);
     const channel = supabase
-      .channel("filtered-messages")
+      .channel("public:messages")
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "messages",
-          filter: channelFilter,
+          filter: `channel=eq.${activeChannel}`,
         },
         (payload) => {
-          console.log("New message received:", payload);
+          console.log("Real-time update received:", payload);
           if (payload.eventType === "INSERT") {
-            const msg = payload.new;
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: msg.id,
-                content: msg.content,
-                sender: msg.sender_id,
-                senderId: msg.sender_id,
-                timestamp: new Date(msg.created_at),
-                channel: msg.channel,
-                isDM: msg.is_dm,
-                recipientId: msg.recipient_id,
-                replyCount: msg.reply_count || 0,
-                reactions: msg.reactions || {},
-                parentId: msg.parent_id,
-              },
-            ]);
+            const newMessage = payload.new;
+            setMessages((prev) => [...prev, {
+              id: newMessage.id,
+              content: newMessage.content,
+              sender: newMessage.sender_id,
+              senderId: newMessage.sender_id,
+              timestamp: new Date(newMessage.created_at),
+              channel: newMessage.channel,
+              isDM: newMessage.is_dm,
+              recipientId: newMessage.recipient_id,
+              replyCount: newMessage.reply_count || 0,
+              reactions: newMessage.reactions || {},
+              parentId: newMessage.parent_id,
+            }]);
           }
         }
       )
       .subscribe();
 
     return () => {
+      console.log("Cleaning up real-time subscription");
       channel.unsubscribe();
     };
-  }, [activeChannel, activeDM, session?.id]);
+  }, [session?.id, activeChannel]);
 
-  const fetchMessages = async (channelName?: string) => {
+  const fetchMessages = async (channelName?: string, sessionId?: string) => {
     try {
-      if (!session?.id) return;
+      const userId = sessionId || session?.id;
+      if (!userId) {
+        console.log("No session ID available, skipping fetch");
+        return;
+      }
 
+      console.log("Fetching messages for channel:", channelName || activeChannel, "with user:", userId);
+      
       let query = supabase
         .from("messages")
         .select("*")
@@ -108,14 +107,20 @@ function Index() {
       if (channelName) {
         query = query.eq("channel", channelName);
       } else if (activeDM) {
-        query = query.eq("channel", getDMChannelName(session.id, activeDM));
+        query = query.eq("channel", getDMChannelName(userId, activeDM));
       } else {
         query = query.eq("channel", activeChannel);
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Error fetching messages:", error);
+        throw error;
+      }
 
+      console.log("Fetched messages:", data?.length || 0);
+      
       const convertedMessages: Message[] = (data ?? []).map((msg) => ({
         id: msg.id,
         content: msg.content,
@@ -130,9 +135,10 @@ function Index() {
         parentId: msg.parent_id,
       }));
 
+      console.log("Setting messages:", convertedMessages.length);
       setMessages(convertedMessages);
     } catch (error) {
-      console.error("Error fetching messages:", error);
+      console.error("Error in fetchMessages:", error);
       toast({
         title: "Error",
         description: "Failed to load messages",
