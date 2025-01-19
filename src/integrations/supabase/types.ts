@@ -51,6 +51,33 @@ export type Database = {
         }
         Relationships: []
       }
+      message_embeddings: {
+        Row: {
+          content_chunk: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          message_id: string
+          metadata: Json
+        }
+        Insert: {
+          content_chunk: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          message_id: string
+          metadata?: Json
+        }
+        Update: {
+          content_chunk?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          message_id?: string
+          metadata?: Json
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           channel: string
@@ -254,11 +281,49 @@ export type Database = {
             }
             Returns: unknown
           }
+      match_message_embeddings: {
+        Args: {
+          query_embedding: string
+          match_threshold: number
+          match_count: number
+        }
+        Returns: {
+          content_chunk: string
+          similarity: number
+          metadata: Json
+        }[]
+      }
       match_messages: {
         Args: {
           query_embedding: string
           match_threshold: number
           match_count: number
+        }
+        Returns: {
+          id: number
+          content: string
+          sender_id: string
+          similarity: number
+        }[]
+      }
+      match_messages_backup_20240114: {
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: {
+          id: number
+          content: string
+          sender_id: string
+          similarity: number
+        }[]
+      }
+      match_messages_new: {
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
         }
         Returns: {
           id: number
